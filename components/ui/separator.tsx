@@ -4,12 +4,7 @@ import * as React from "react"
 import * as SeparatorPrimitive from "@radix-ui/react-separator"
 import { cn } from "@/lib/utils"
 
-/**
- * Horizontal or vertical separator line – Radix wrapper.
- *
- *    <Separator className="my-4" />
- */
-const Separator = React.forwardRef<
+export const Separator = React.forwardRef<
   React.ElementRef<typeof SeparatorPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>
 >(({ className, orientation = "horizontal", decorative = true, ...props }, ref) => (
@@ -22,6 +17,3 @@ const Separator = React.forwardRef<
   />
 ))
 Separator.displayName = SeparatorPrimitive.Root.displayName
-
-export { Separator }
-export default Separator

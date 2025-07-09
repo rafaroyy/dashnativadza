@@ -1,11 +1,9 @@
-import { type ClassValue, clsx } from "clsx"
+import { clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 /**
- * Tailwind-aware className joiner.
- *
- *   cn("px-4", isActive && "bg-primary")
+ * Junta classes de forma condicional preservando a ordem do Tailwind
  */
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: Array<string | undefined | null | false>) {
   return twMerge(clsx(inputs))
 }
