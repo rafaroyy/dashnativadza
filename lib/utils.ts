@@ -1,7 +1,11 @@
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
 /**
- * Utility helpers shared across the app.
- * Currently just `cn`, a Tailwind variants helper.
+ * Tailwind-aware className joiner.
+ *
+ *   cn("px-4", isActive && "bg-primary")
  */
-export function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ")
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
 }
