@@ -1,0 +1,12 @@
+{
+  "name": "security-audit-script",
+  "scripts": {
+    "security-audit": "npm audit --audit-level moderate",
+    "security-fix": "npm audit fix",
+    "dependency-check": "npm outdated",
+    "license-check": "license-checker --summary"
+  },
+  "devDependencies": {
+    "license-checker": "^25.0.1"
+  }
+}
