@@ -1,17 +1,17 @@
+import type React from "react"
 import { redirect } from "next/navigation"
-import type { ReactNode } from "react"
-import { createClient } from "@/lib/supabase/server"
+import { getUser } from "@/lib/supabase/server"
 
-/**
- * Server Component that redirects to /login
- * when the user is not authenticated.
- */
-export default async function AuthGuard({ children }: { children: ReactNode }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+interface AuthGuardProps {
+  children: React.ReactNode
+}
 
-  if (!user) redirect("/login")
+export default async function AuthGuard({ children }: AuthGuardProps) {
+  const user = await getUser()
+
+  if (!user) {
+    redirect("/login")
+  }
+
   return <>{children}</>
 }

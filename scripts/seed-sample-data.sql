@@ -1,44 +1,57 @@
--- Insert sample users with fixed UUIDs
-INSERT INTO users (id, name, email, phone, role, location, online_status) VALUES
-('550e8400-e29b-41d4-a716-446655440001', 'Ana Silva', 'ana@exemplo.com', '(11) 99999-0001', 'Desenvolvedora', 'São Paulo', true),
-('550e8400-e29b-41d4-a716-446655440002', 'Carlos Santos', 'carlos@exemplo.com', '(11) 99999-0002', 'Designer', 'Rio de Janeiro', false),
-('550e8400-e29b-41d4-a716-446655440003', 'Maria Oliveira', 'maria@exemplo.com', '(11) 99999-0003', 'Gerente', 'Belo Horizonte', true),
-('550e8400-e29b-41d4-a716-446655440004', 'João Costa', 'joao@exemplo.com', '(11) 99999-0004', 'Analista', 'Porto Alegre', false),
-('550e8400-e29b-41d4-a716-446655440005', 'Lucia Ferreira', 'lucia@exemplo.com', '(11) 99999-0005', 'QA', 'Brasília', true)
-ON CONFLICT (email) DO NOTHING;
+-- Insert sample users with temporary password "123"
+INSERT INTO users (id, name, email, password, role, profile_image_url, online_status) VALUES
+('550e8400-e29b-41d4-a716-446655440001', 'João Silva', 'joao@example.com', '123', 'admin', 'https://api.dicebear.com/8.x/initials/svg?seed=João Silva', true),
+('550e8400-e29b-41d4-a716-446655440002', 'Maria Santos', 'maria@example.com', '123', 'manager', 'https://api.dicebear.com/8.x/initials/svg?seed=Maria Santos', true),
+('550e8400-e29b-41d4-a716-446655440003', 'Pedro Costa', 'pedro@example.com', '123', 'member', 'https://api.dicebear.com/8.x/initials/svg?seed=Pedro Costa', false),
+('550e8400-e29b-41d4-a716-446655440004', 'Ana Oliveira', 'ana@example.com', '123', 'member', 'https://api.dicebear.com/8.x/initials/svg?seed=Ana Oliveira', true),
+('550e8400-e29b-41d4-a716-446655440005', 'Carlos Ferreira', 'carlos@example.com', '123', 'member', 'https://api.dicebear.com/8.x/initials/svg?seed=Carlos Ferreira', false)
+ON CONFLICT (id) DO NOTHING;
 
 -- Insert sample workspaces
-INSERT INTO workspaces (id, name, description, user_id) VALUES
-('450e8400-e29b-41d4-a716-446655440001', 'DigitalZ Academy', 'Workspace principal da DigitalZ Academy', '550e8400-e29b-41d4-a716-446655440001')
+INSERT INTO workspaces (id, name, description, owner_id) VALUES
+('660e8400-e29b-41d4-a716-446655440001', 'Workspace Principal', 'Workspace principal da empresa', '550e8400-e29b-41d4-a716-446655440001'),
+('660e8400-e29b-41d4-a716-446655440002', 'Projetos de Marketing', 'Workspace para projetos de marketing', '550e8400-e29b-41d4-a716-446655440002')
 ON CONFLICT (id) DO NOTHING;
 
--- Insert sample spaces
-INSERT INTO spaces (id, name, description, workspace_id, user_id, space_color, space_avatar) VALUES
-('350e8400-e29b-41d4-a716-446655440001', 'Marketing Digital', 'Projetos e campanhas de marketing digital', '450e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', '#00FFD1', '📱'),
-('350e8400-e29b-41d4-a716-446655440002', 'Desenvolvimento', 'Projetos de desenvolvimento de software', '450e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', '#00ff88', '💻'),
-('350e8400-e29b-41d4-a716-446655440003', 'Educação', 'Conteúdos educacionais e cursos', '450e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', '#ffaa00', '🎓')
-ON CONFLICT (id) DO NOTHING;
+-- Insert workspace members
+INSERT INTO workspace_members (workspace_id, user_id, role) VALUES
+('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'admin'),
+('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', 'manager'),
+('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', 'member'),
+('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440004', 'member'),
+('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', 'admin'),
+('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440005', 'member')
+ON CONFLICT (workspace_id, user_id) DO NOTHING;
 
 -- Insert sample projects
-INSERT INTO projects (id, title, description, status, progress, deadline, members_count, tasks_total, created_by, space_id) VALUES
-('650e8400-e29b-41d4-a716-446655440001', 'Sistema de Vendas', 'Desenvolvimento de sistema completo de vendas online', 'active', 65, '2024-03-15', 4, 12, '550e8400-e29b-41d4-a716-446655440001', '350e8400-e29b-41d4-a716-446655440002'),
-('650e8400-e29b-41d4-a716-446655440002', 'App Mobile', 'Aplicativo mobile para gestão de tarefas', 'active', 30, '2024-04-20', 3, 8, '550e8400-e29b-41d4-a716-446655440002', '350e8400-e29b-41d4-a716-446655440002'),
-('650e8400-e29b-41d4-a716-446655440003', 'Website Corporativo', 'Novo website da empresa com design moderno', 'completed', 100, '2024-01-30', 2, 6, '550e8400-e29b-41d4-a716-446655440003', '350e8400-e29b-41d4-a716-446655440001')
+INSERT INTO projects (id, name, description, workspace_id, status, color, progress, created_by) VALUES
+('770e8400-e29b-41d4-a716-446655440001', 'Sistema de Vendas', 'Desenvolvimento do novo sistema de vendas', '660e8400-e29b-41d4-a716-446655440001', 'active', '#FF6B6B', 75, '550e8400-e29b-41d4-a716-446655440001'),
+('770e8400-e29b-41d4-a716-446655440002', 'App Mobile', 'Desenvolvimento do aplicativo mobile', '660e8400-e29b-41d4-a716-446655440001', 'active', '#4ECDC4', 45, '550e8400-e29b-41d4-a716-446655440002'),
+('770e8400-e29b-41d4-a716-446655440003', 'Campanha Digital', 'Nova campanha de marketing digital', '660e8400-e29b-41d4-a716-446655440002', 'active', '#45B7D1', 30, '550e8400-e29b-41d4-a716-446655440002')
 ON CONFLICT (id) DO NOTHING;
 
--- Insert sample tasks with all required fields
-INSERT INTO tasks (id, title, description, assigned_to, project_id, space_id, status, due_date, completed, priority) VALUES
-('750e8400-e29b-41d4-a716-446655440001', 'Implementar autenticação', 'Desenvolver sistema de login e registro de usuários', '550e8400-e29b-41d4-a716-446655440001', '650e8400-e29b-41d4-a716-446655440001', '350e8400-e29b-41d4-a716-446655440002', 'completed', '2024-02-15', true, 'high'),
-('750e8400-e29b-41d4-a716-446655440002', 'Criar dashboard', 'Desenvolver painel administrativo com métricas', '550e8400-e29b-41d4-a716-446655440001', '650e8400-e29b-41d4-a716-446655440001', '350e8400-e29b-41d4-a716-446655440002', 'in-progress', '2024-02-28', false, 'normal'),
-('750e8400-e29b-41d4-a716-446655440003', 'Design da interface', 'Criar mockups e protótipos das telas principais', '550e8400-e29b-41d4-a716-446655440002', '650e8400-e29b-41d4-a716-446655440002', '350e8400-e29b-41d4-a716-446655440002', 'todo', '2024-03-10', false, 'normal'),
-('750e8400-e29b-41d4-a716-446655440004', 'Testes de usabilidade', 'Realizar testes com usuários finais', '550e8400-e29b-41d4-a716-446655440005', '650e8400-e29b-41d4-a716-446655440002', '350e8400-e29b-41d4-a716-446655440002', 'todo', '2024-03-20', false, 'low'),
-('750e8400-e29b-41d4-a716-446655440005', 'Otimização SEO', 'Implementar melhorias para motores de busca', '550e8400-e29b-41d4-a716-446655440003', '650e8400-e29b-41d4-a716-446655440003', '350e8400-e29b-41d4-a716-446655440001', 'completed', '2024-01-25', true, 'urgent')
+-- Insert project members
+INSERT INTO project_members (project_id, user_id, role) VALUES
+('770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'admin'),
+('770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', 'member'),
+('770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', 'admin'),
+('770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 'member'),
+('770e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440002', 'admin'),
+('770e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440005', 'member')
+ON CONFLICT (project_id, user_id) DO NOTHING;
+
+-- Insert sample tasks
+INSERT INTO tasks (id, title, description, project_id, assignee_id, status, priority, due_date, created_by) VALUES
+('880e8400-e29b-41d4-a716-446655440001', 'Criar interface de login', 'Desenvolver a tela de login do sistema', '770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', 'in-progress', 'high', '2024-02-15', '550e8400-e29b-41d4-a716-446655440001'),
+('880e8400-e29b-41d4-a716-446655440002', 'Configurar banco de dados', 'Configurar e otimizar o banco de dados', '770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'completed', 'high', '2024-02-10', '550e8400-e29b-41d4-a716-446655440001'),
+('880e8400-e29b-41d4-a716-446655440003', 'Design da interface mobile', 'Criar o design das telas do app mobile', '770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 'todo', 'normal', '2024-02-20', '550e8400-e29b-41d4-a716-446655440002'),
+('880e8400-e29b-41d4-a716-446655440004', 'Implementar notificações push', 'Adicionar sistema de notificações push', '770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 'todo', 'normal', '2024-02-25', '550e8400-e29b-41d4-a716-446655440002'),
+('880e8400-e29b-41d4-a716-446655440005', 'Criar conteúdo para redes sociais', 'Desenvolver conteúdo para Instagram e Facebook', '770e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440005', 'in-progress', 'normal', '2024-02-18', '550e8400-e29b-41d4-a716-446655440002')
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert sample messages
-INSERT INTO messages (id, sender_id, receiver_id, content) VALUES
-('850e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', 'Oi Carlos, como está o progresso do design?'),
-('850e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440001', 'Olá Ana! Estou finalizando os mockups, deve ficar pronto até amanhã.'),
-('850e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', 'Ana, preciso revisar os requisitos do projeto. Podemos conversar?'),
-('850e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', 'Claro Maria! Estou disponível agora.')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO messages (sender_id, receiver_id, content) VALUES
+('550e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', 'Como está o progresso da interface de login?'),
+('550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', 'Está quase pronto! Só faltam alguns ajustes finais.'),
+('550e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', 'Preciso que você revise os designs do app mobile.'),
+('550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440002', 'Perfeito! Vou revisar hoje mesmo.');

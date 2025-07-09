@@ -7,8 +7,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export interface User {
   id: string
-  email: string
   name: string
+  email: string
+  password: string
+  phone?: string
+  role?: string
+  location?: string
   profile_image_url?: string
   online_status?: boolean
   created_at: string
@@ -31,6 +35,9 @@ export interface Project {
   workspace_id: string
   status: string
   color: string
+  progress: number
+  deadline?: string
+  created_by?: string
   created_at: string
   updated_at: string
 }
@@ -41,9 +48,11 @@ export interface Task {
   description?: string
   project_id: string
   assignee_id?: string
+  created_by?: string
   status: string
   priority: string
   due_date?: string
+  completed: boolean
   created_at: string
   updated_at: string
   assignee?: User
@@ -55,6 +64,7 @@ export interface Message {
   content: string
   sender_id: string
   receiver_id: string
+  read_at?: string
   created_at: string
 }
 
@@ -88,12 +98,43 @@ export const dbOperations = {
   async getUserById(id: string): Promise<User | null> {
     const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
 
+    if (error) return null
+    return data
+  },
+
+  async getUserByEmail(email: string): Promise<User | null> {
+    const { data, error } = await supabase.from("users").select("*").eq("email", email).single()
+
+    if (error) return null
+    return data
+  },
+
+  async getUserByEmailAndPassword(email: string, password: string): Promise<User | null> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .eq("password", password)
+      .single()
+
+    if (error) return null
+    return data
+  },
+
+  async createUser(user: Omit<User, "id" | "created_at" | "updated_at">): Promise<User | null> {
+    const { data, error } = await supabase.from("users").insert(user).select().single()
+
     if (error) throw error
     return data
   },
 
-  async createUser(user: Omit<User, "id" | "created_at" | "updated_at">): Promise<User> {
-    const { data, error } = await supabase.from("users").insert(user).select().single()
+  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+    const { data, error } = await supabase
+      .from("users")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single()
 
     if (error) throw error
     return data
@@ -160,7 +201,7 @@ export const dbOperations = {
       .from("tasks")
       .select(`
         *,
-        assignee:users(id, name, email, profile_image_url),
+        assignee:users!assignee_id(id, name, email, profile_image_url),
         project:projects(id, name, color)
       `)
       .order("created_at", { ascending: false })
@@ -174,7 +215,7 @@ export const dbOperations = {
       .from("tasks")
       .select(`
         *,
-        assignee:users(id, name, email, profile_image_url),
+        assignee:users!assignee_id(id, name, email, profile_image_url),
         project:projects(id, name, color)
       `)
       .eq("project_id", projectId)
@@ -190,7 +231,7 @@ export const dbOperations = {
       .insert(task)
       .select(`
         *,
-        assignee:users(id, name, email, profile_image_url),
+        assignee:users!assignee_id(id, name, email, profile_image_url),
         project:projects(id, name, color)
       `)
       .single()
@@ -206,7 +247,7 @@ export const dbOperations = {
       .eq("id", id)
       .select(`
         *,
-        assignee:users(id, name, email, profile_image_url),
+        assignee:users!assignee_id(id, name, email, profile_image_url),
         project:projects(id, name, color)
       `)
       .single()
