@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DigitalzLogo } from "@/components/ui/digitalz-logo"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
-import { login, signup } from "@/app/auth/actions"
+import { signInWithEmail, signUpWithEmail } from "@/app/auth/actions"
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
@@ -22,12 +22,13 @@ export default function LoginPage() {
     setError(null)
 
     const formData = new FormData(e.currentTarget)
-    const action = isLogin ? login : signup
+    const action = isLogin ? signInWithEmail : signUpWithEmail
     const result = await action(formData)
 
     if (result?.error) {
       setError(result.error)
     }
+    // A redireção em caso de sucesso é tratada pela Server Action
     setIsPending(false)
   }
 
@@ -77,7 +78,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
             <Button type="submit" className="w-full gradient-bg" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
