@@ -1,4 +1,6 @@
-"use client"
+// Força renderização dinâmica (SSR) – necessário para Supabase, cookies, etc
+export const dynamic = "force-dynamic"
+;("use client")
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
