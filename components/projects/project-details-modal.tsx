@@ -1,14 +1,14 @@
 "use client"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Users, CheckCircle, Clock, AlertCircle, BarChart3, Edit, Trash2 } from "lucide-react"
-import { dbOperations, type Project, type Task, type User } from "@/lib/supabase"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Calendar, CheckCircle, Clock, AlertCircle, Edit, Trash2 } from "lucide-react"
+import { dbOperations, type Project, type Task, type ProjectMember } from "@/lib/supabase"
 
 interface ProjectDetailsModalProps {
   open: boolean
@@ -20,277 +20,246 @@ interface ProjectDetailsModalProps {
 
 export function ProjectDetailsModal({ open, onOpenChange, project, onEdit, onDelete }: ProjectDetailsModalProps) {
   const [tasks, setTasks] = useState<Task[]>([])
-  const [users, setUsers] = useState<User[]>([])
+  const [members, setMembers] = useState<ProjectMember[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (open && project) {
+    if (open && project.id) {
       loadProjectData()
     }
-  }, [open, project])
+  }, [open, project.id])
 
   const loadProjectData = async () => {
     setLoading(true)
-    setError(null)
-
     try {
-      const [allTasks, allUsers] = await Promise.all([dbOperations.getTasks(), dbOperations.getUsers()])
-
-      // Filter tasks for this project
-      const projectTasks = allTasks.filter((task) => task.project_id === project.id)
-      setTasks(projectTasks)
-      setUsers(allUsers)
-    } catch (error: any) {
+      const [tasksData, membersData] = await Promise.all([
+        dbOperations.getTasksByProject(project.id),
+        dbOperations.getProjectMembers(project.id),
+      ])
+      setTasks(tasksData)
+      setMembers(membersData)
+    } catch (error) {
       console.error("Error loading project data:", error)
-      setError("Erro ao carregar dados do projeto")
     } finally {
       setLoading(false)
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800"
-      case "completed":
-        return "bg-blue-100 text-blue-800"
-      case "on-hold":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      todo: { label: "A Fazer", variant: "secondary" as const },
+      in_progress: { label: "Em Progresso", variant: "default" as const },
+      done: { label: "Concluído", variant: "default" as const },
     }
+    return statusConfig[status as keyof typeof statusConfig] || statusConfig.todo
   }
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "active":
-        return "Ativo"
-      case "completed":
-        return "Concluído"
-      case "on-hold":
-        return "Pausado"
-      default:
-        return status
+  const getPriorityBadge = (priority: string) => {
+    const priorityConfig = {
+      low: { label: "Baixa", variant: "secondary" as const },
+      medium: { label: "Média", variant: "default" as const },
+      high: { label: "Alta", variant: "destructive" as const },
     }
+    return priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.medium
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "text-red-600"
-      case "high":
-        return "text-orange-600"
-      case "normal":
-        return "text-blue-600"
-      case "low":
-        return "text-gray-600"
-      default:
-        return "text-gray-600"
-    }
+  const getTaskStats = () => {
+    const total = tasks.length
+    const completed = tasks.filter((task) => task.status === "done").length
+    const inProgress = tasks.filter((task) => task.status === "in_progress").length
+    const todo = tasks.filter((task) => task.status === "todo").length
+
+    return { total, completed, inProgress, todo }
   }
 
-  const getPriorityText = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "Urgente"
-      case "high":
-        return "Alta"
-      case "normal":
-        return "Normal"
-      case "low":
-        return "Baixa"
-      default:
-        return priority
-    }
-  }
-
-  const getTaskStatusText = (status: string) => {
-    switch (status) {
-      case "todo":
-        return "A Fazer"
-      case "in-progress":
-        return "Em Progresso"
-      case "completed":
-        return "Concluído"
-      default:
-        return status
-    }
-  }
-
-  const getUserName = (userId: string) => {
-    const user = users.find((u) => u.id === userId)
-    return user?.name || "Usuário não encontrado"
-  }
-
-  const completedTasks = tasks.filter((task) => task.completed).length
-  const totalTasks = tasks.length
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "Não definida"
-    return new Date(dateString).toLocaleDateString("pt-BR")
-  }
-
-  const isOverdue = (dateString: string) => {
-    if (!dateString) return false
-    return new Date(dateString) < new Date()
-  }
+  const stats = getTaskStats()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[700px] h-[600px] flex flex-col p-0">
+        <DialogHeader className="px-6 py-4 border-b">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl">{project.title}</DialogTitle>
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: project.color }} />
+              <DialogTitle className="text-xl">{project.name}</DialogTitle>
+              <Badge variant="outline">{project.status}</Badge>
+            </div>
             <div className="flex items-center space-x-2">
-              {onEdit && (
-                <Button variant="outline" size="sm" onClick={() => onEdit(project)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-              )}
-              {onDelete && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onDelete(project.id)}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir
-                </Button>
-              )}
+              <Button variant="outline" size="sm" onClick={() => onEdit?.(project)}>
+                <Edit className="h-4 w-4 mr-1" />
+                Editar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => onDelete?.(project.id)}>
+                <Trash2 className="h-4 w-4 mr-1" />
+                Excluir
+              </Button>
             </div>
           </div>
+          {project.description && <p className="text-sm text-muted-foreground mt-2">{project.description}</p>}
         </DialogHeader>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
-        ) : (
-          <ScrollArea className="max-h-[60vh]">
-            <div className="space-y-6">
-              {/* Project Info */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Badge className={getStatusColor(project.status)}>{getStatusText(project.status)}</Badge>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    {formatDate(project.deadline)}
-                    {isOverdue(project.deadline) && <AlertCircle className="h-4 w-4 ml-2 text-red-500" />}
+        <div className="flex-1 overflow-hidden">
+          <Tabs defaultValue="overview" className="h-full flex flex-col">
+            <TabsList className="mx-6 mt-4">
+              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="tasks">Tarefas ({tasks.length})</TabsTrigger>
+              <TabsTrigger value="members">Membros ({members.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="flex-1 px-6 pb-6">
+              <div className="space-y-6">
+                {/* Project Stats */}
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold">{stats.total}</div>
+                    <div className="text-sm text-muted-foreground">Total</div>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{stats.todo}</div>
+                    <div className="text-sm text-muted-foreground">A Fazer</div>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-yellow-600">{stats.inProgress}</div>
+                    <div className="text-sm text-muted-foreground">Em Progresso</div>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+                    <div className="text-sm text-muted-foreground">Concluído</div>
                   </div>
                 </div>
 
-                {project.description && <p className="text-muted-foreground">{project.description}</p>}
-
-                {/* Progress */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Progresso</span>
-                    <span className="text-sm text-muted-foreground">{completionRate}%</span>
-                  </div>
-                  <Progress value={completionRate} className="h-2" />
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="flex items-center justify-center mb-1">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                    </div>
-                    <div className="text-2xl font-bold">{completedTasks}</div>
-                    <div className="text-xs text-muted-foreground">Concluídas</div>
-                  </div>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="flex items-center justify-center mb-1">
-                      <Clock className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div className="text-2xl font-bold">{totalTasks - completedTasks}</div>
-                    <div className="text-xs text-muted-foreground">Pendentes</div>
-                  </div>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="flex items-center justify-center mb-1">
-                      <Users className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div className="text-2xl font-bold">{project.members_count}</div>
-                    <div className="text-xs text-muted-foreground">Membros</div>
+                {/* Recent Tasks */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Tarefas Recentes</h3>
+                  <div className="space-y-2">
+                    {tasks.slice(0, 5).map((task) => (
+                      <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
+                            {task.status === "done" ? (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            ) : task.status === "in_progress" ? (
+                              <Clock className="h-4 w-4 text-yellow-600" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4 text-blue-600" />
+                            )}
+                            <span className="font-medium">{task.title}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge {...getPriorityBadge(task.priority)}>{getPriorityBadge(task.priority).label}</Badge>
+                          {task.assignee && (
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={task.assignee.profile_image_url || "/placeholder.svg"} />
+                              <AvatarFallback className="text-xs">
+                                {task.assignee.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
+            </TabsContent>
 
-              <Separator />
-
-              {/* Tasks */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Tarefas ({totalTasks})</h3>
-                  <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                </div>
-
-                {tasks.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhuma tarefa encontrada</p>
-                    <p className="text-sm">As tarefas aparecerão aqui quando forem criadas</p>
+            <TabsContent value="tasks" className="flex-1">
+              <ScrollArea className="h-full px-6 pb-6">
+                {loading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : tasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Nenhuma tarefa encontrada</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <div
-                              className={`w-2 h-2 rounded-full ${task.completed ? "bg-green-500" : "bg-gray-300"}`}
-                            />
-                            <h4 className="font-medium truncate">{task.title}</h4>
-                            <Badge variant="outline" className={`text-xs ${getPriorityColor(task.priority)}`}>
-                              {getPriorityText(task.priority)}
-                            </Badge>
-                          </div>
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground mt-1 truncate">{task.description}</p>
-                          )}
-                          <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
-                            <span>{getTaskStatusText(task.status)}</span>
-                            {task.assigned_to && <span>Responsável: {getUserName(task.assigned_to)}</span>}
-                            {task.due_date && (
-                              <span className={isOverdue(task.due_date) ? "text-red-600" : ""}>
-                                Entrega: {formatDate(task.due_date)}
-                              </span>
+                      <div key={task.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{task.title}</h4>
+                            {task.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
                             )}
+                            <div className="flex items-center space-x-4 mt-3">
+                              <Badge {...getStatusBadge(task.status)}>{getStatusBadge(task.status).label}</Badge>
+                              <Badge {...getPriorityBadge(task.priority)}>
+                                {getPriorityBadge(task.priority).label}
+                              </Badge>
+                              {task.due_date && (
+                                <div className="flex items-center text-sm text-muted-foreground">
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  {new Date(task.due_date).toLocaleDateString("pt-BR")}
+                                </div>
+                              )}
+                            </div>
                           </div>
+                          {task.assignee && (
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={task.assignee.profile_image_url || "/placeholder.svg"} />
+                              <AvatarFallback>
+                                {task.assignee.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
                         </div>
-                        {task.assigned_to && (
-                          <Avatar className="h-8 w-8 ml-3">
-                            <AvatarImage
-                              src={
-                                users.find((u) => u.id === task.assigned_to)?.profile_image_url || "/placeholder.svg"
-                              }
-                              alt={getUserName(task.assigned_to)}
-                            />
-                            <AvatarFallback className="text-xs">
-                              {getUserName(task.assigned_to)
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="members" className="flex-1">
+              <ScrollArea className="h-full px-6 pb-6">
+                {loading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : members.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Nenhum membro encontrado</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {members.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={member.user?.profile_image_url || "/placeholder.svg"} />
+                            <AvatarFallback>
+                              {member.user?.name
                                 .split(" ")
                                 .map((n) => n[0])
                                 .join("")}
                             </AvatarFallback>
                           </Avatar>
-                        )}
+                          <div>
+                            <p className="font-medium">{member.user?.name}</p>
+                            <p className="text-sm text-muted-foreground">{member.user?.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="outline">{member.role}</Badge>
+                          {member.user?.online_status && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-          </ScrollArea>
-        )}
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   )

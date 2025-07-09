@@ -1,188 +1,183 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { dbOperations } from "@/lib/supabase"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserPlus, Search } from "lucide-react"
+import { dbOperations, type User } from "@/lib/supabase"
 
 interface AddMemberModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onMemberAdded: (member: any) => void
+  type: "workspace" | "project"
+  targetId: string // workspace_id or project_id
+  onMemberAdded?: () => void
 }
 
-export function AddMemberModal({ open, onOpenChange, onMemberAdded }: AddMemberModalProps) {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    role: "",
-    location: "",
-  })
+export function AddMemberModal({ type, targetId, onMemberAdded }: AddMemberModalProps) {
+  const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [users, setUsers] = useState<User[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedUserId, setSelectedUserId] = useState("")
+  const [selectedRole, setSelectedRole] = useState("member")
+
+  useEffect(() => {
+    if (open) {
+      loadUsers()
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = users.filter(
+        (user) =>
+          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+      setFilteredUsers(filtered)
+    } else {
+      setFilteredUsers(users)
+    }
+  }, [searchTerm, users])
+
+  const loadUsers = async () => {
+    try {
+      const usersData = await dbOperations.getUsers()
+      setUsers(usersData)
+      setFilteredUsers(usersData)
+    } catch (error) {
+      console.error("Error loading users:", error)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!selectedUserId || !targetId) return
+
     setLoading(true)
-    setError(null)
-
     try {
-      if (!formData.name.trim()) {
-        throw new Error("Nome é obrigatório")
-      }
-      if (!formData.email.trim()) {
-        throw new Error("Email é obrigatório")
-      }
-      if (!formData.role.trim()) {
-        throw new Error("Cargo é obrigatório")
+      const memberData = {
+        user_id: selectedUserId,
+        role: selectedRole,
+        ...(type === "workspace" ? { workspace_id: targetId } : { project_id: targetId }),
       }
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(formData.email)) {
-        throw new Error("Email inválido")
+      if (type === "workspace") {
+        await dbOperations.addWorkspaceMember(memberData)
+      } else {
+        await dbOperations.addProjectMember(memberData)
       }
 
-      const newMember = await dbOperations.createUser({
-        name: formData.name.trim(),
-        email: formData.email.trim().toLowerCase(),
-        phone: formData.phone.trim() || undefined,
-        role: formData.role.trim(),
-        location: formData.location.trim() || undefined,
-        online_status: true,
-      })
-
-      if (newMember) {
-        onMemberAdded(newMember)
-        onOpenChange(false)
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          role: "",
-          location: "",
-        })
-      }
-    } catch (error: any) {
-      console.error("Error creating member:", error)
-      setError(error.message || "Erro ao adicionar membro")
+      setSelectedUserId("")
+      setSelectedRole("member")
+      setSearchTerm("")
+      setOpen(false)
+      onMemberAdded?.()
+    } catch (error) {
+      console.error("Error adding member:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleClose = () => {
-    onOpenChange(false)
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      role: "",
-      location: "",
-    })
-    setError(null)
-  }
+  const roleOptions = [
+    { value: "member", label: "Membro" },
+    { value: "admin", label: "Administrador" },
+    { value: "owner", label: "Proprietário" },
+  ]
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Adicionar Membro
+        </Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Adicionar Membro</DialogTitle>
-          <DialogDescription>Adicione um novo membro à equipe</DialogDescription>
+          <DialogTitle>Adicionar Membro ao {type === "workspace" ? "Workspace" : "Projeto"}</DialogTitle>
         </DialogHeader>
-
-        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{error}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="member-name">Nome Completo *</Label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Buscar Usuário</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                id="member-name"
-                value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Digite o nome completo"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="member-email">Email *</Label>
-              <Input
-                id="member-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-                placeholder="Digite o email"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="member-phone">Telefone</Label>
-                <Input
-                  id="member-phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="member-role">Cargo *</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, role: value }))}
-                  required
-                >
-                  <SelectTrigger id="member-role">
-                    <SelectValue placeholder="Selecione o cargo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Desenvolvedor">Desenvolvedor</SelectItem>
-                    <SelectItem value="Designer">Designer</SelectItem>
-                    <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
-                    <SelectItem value="QA Tester">QA Tester</SelectItem>
-                    <SelectItem value="DevOps">DevOps</SelectItem>
-                    <SelectItem value="Product Manager">Product Manager</SelectItem>
-                    <SelectItem value="UI/UX Designer">UI/UX Designer</SelectItem>
-                    <SelectItem value="Analista de Sistemas">Analista de Sistemas</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="member-location">Localização</Label>
-              <Input
-                id="member-location"
-                value={formData.location}
-                onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
-                placeholder="Cidade, Estado"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Digite o nome ou email do usuário"
+                className="pl-10"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
+
+          <div className="space-y-2">
+            <Label>Selecionar Usuário *</Label>
+            <Select value={selectedUserId} onValueChange={setSelectedUserId} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um usuário" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredUsers.length === 0 ? (
+                  <SelectItem value="no-users" disabled>
+                    {searchTerm ? "Nenhum usuário encontrado" : "Nenhum usuário disponível"}
+                  </SelectItem>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      <div className="flex items-center space-x-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={user.profile_image_url || "/placeholder.svg"} />
+                          <AvatarFallback className="text-xs">
+                            {user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{user.name}</div>
+                          <div className="text-xs text-muted-foreground">{user.email}</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Função</Label>
+            <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma função" />
+              </SelectTrigger>
+              <SelectContent>
+                {roleOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={loading}>
+            <Button type="submit" disabled={loading || !selectedUserId}>
               {loading ? "Adicionando..." : "Adicionar Membro"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
