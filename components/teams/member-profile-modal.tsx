@@ -3,258 +3,154 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, Phone, MapPin, Calendar, MessageCircle, Edit } from "lucide-react"
-
-interface TeamMember {
-  id: string
-  name: string
-  email: string
-  role: string
-  phone: string
-  location: string
-  profile_image_url: string
-  online_status: boolean
-  created_at: string
-}
+import { Mail, Phone, MapPin, Calendar, MessageCircle, Edit, UserCheck, Clock } from "lucide-react"
+import type { User } from "@/lib/supabase"
 
 interface MemberProfileModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  member: TeamMember
-  onStartChat?: (member: TeamMember) => void
-  onEditMember?: (member: TeamMember) => void
+  member: User
+  onEdit?: (member: User) => void
+  onMessage?: (member: User) => void
 }
 
-export function MemberProfileModal({ open, onOpenChange, member, onStartChat, onEditMember }: MemberProfileModalProps) {
-  const [activeTab, setActiveTab] = useState("profile")
+export function MemberProfileModal({ open, onOpenChange, member, onEdit, onMessage }: MemberProfileModalProps) {
+  const [loading, setLoading] = useState(false)
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("pt-BR", {
+    return new Date(dateString).toLocaleDateString("pt-BR", {
       year: "numeric",
       month: "long",
       day: "numeric",
     })
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
+  const getStatusColor = (online: boolean) => {
+    return online ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
   }
 
-  // Mock data for demonstration
-  const memberStats = {
-    tasksCompleted: 24,
-    tasksInProgress: 3,
-    projectsActive: 2,
-    teamCollaborations: 8,
+  const getStatusText = (online: boolean) => {
+    return online ? "Online" : "Offline"
   }
-
-  const recentActivity = [
-    {
-      id: 1,
-      action: "Concluiu a tarefa",
-      target: "Implementar autenticação",
-      time: "2 horas atrás",
-      type: "task",
-    },
-    {
-      id: 2,
-      action: "Comentou no projeto",
-      target: "Sistema de Gestão",
-      time: "1 dia atrás",
-      type: "comment",
-    },
-    {
-      id: 3,
-      action: "Iniciou trabalho na tarefa",
-      target: "Criar dashboard",
-      time: "2 dias atrás",
-      type: "task",
-    },
-  ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-16 w-16">
-              <AvatarImage src={member.profile_image_url || "/placeholder.svg"} alt={member.name} />
-              <AvatarFallback className="text-lg">{getInitials(member.name)}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <DialogTitle className="text-xl">{member.name}</DialogTitle>
-              <p className="text-muted-foreground">{member.role}</p>
-              <div className="flex items-center space-x-2 mt-2">
-                <Badge variant={member.online_status ? "default" : "secondary"}>
-                  {member.online_status ? "Online" : "Offline"}
-                </Badge>
-              </div>
-            </div>
-            <div className="flex space-x-2">
-              {onStartChat && (
-                <Button variant="outline" size="sm" onClick={() => onStartChat(member)}>
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Chat
-                </Button>
-              )}
-              {onEditMember && (
-                <Button variant="outline" size="sm" onClick={() => onEditMember(member)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-              )}
-            </div>
-          </div>
+          <DialogTitle>Perfil do Membro</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="profile">Perfil</TabsTrigger>
-            <TabsTrigger value="activity">Atividade</TabsTrigger>
-            <TabsTrigger value="stats">Estatísticas</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="profile" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Informações de Contato</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{member.email}</span>
-                </div>
-                {member.phone && (
-                  <div className="flex items-center space-x-3">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{member.phone}</span>
+        <div className="space-y-6">
+          {/* Profile Header */}
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-20 w-20">
+              <AvatarImage src={member.profile_image_url || "/placeholder.svg"} alt={member.name} />
+              <AvatarFallback className="text-lg">
+                {member.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold">{member.name}</h2>
+              {member.role && <p className="text-muted-foreground text-lg">{member.role}</p>}
+              <div className="flex items-center space-x-2 mt-2">
+                <Badge className={getStatusColor(member.online_status || false)}>
+                  {getStatusText(member.online_status || false)}
+                </Badge>
+                {member.online_status && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse" />
+                    Ativo agora
                   </div>
                 )}
-                {member.location && (
-                  <div className="flex items-center space-x-3">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{member.location}</span>
-                  </div>
-                )}
-                <div className="flex items-center space-x-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Membro desde {formatDate(member.created_at)}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Sobre</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {member.role} experiente com foco em desenvolvimento de soluções inovadoras e trabalho em equipe.
-                  Sempre buscando aprender novas tecnologias e contribuir para o sucesso dos projetos.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="activity" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Atividade Recente</CardTitle>
-                <CardDescription>Últimas ações realizadas pelo membro</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start space-x-3 pb-3 border-b last:border-b-0">
-                      <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm">
-                          <span className="font-medium">{activity.action}</span>{" "}
-                          <span className="text-primary">{activity.target}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">{activity.time}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="stats" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Tarefas Concluídas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{memberStats.tasksCompleted}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Em Progresso</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{memberStats.tasksInProgress}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-purple-600">{memberStats.projectsActive}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Colaborações</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">{memberStats.teamCollaborations}</div>
-                </CardContent>
-              </Card>
+              </div>
             </div>
+          </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Performance</CardTitle>
-                <CardDescription>Métricas de desempenho do membro</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Taxa de Conclusão</span>
-                    <span className="text-sm text-green-600 font-medium">89%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Pontualidade</span>
-                    <span className="text-sm text-blue-600 font-medium">95%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Qualidade</span>
-                    <span className="text-sm text-purple-600 font-medium">92%</span>
+          <Separator />
+
+          {/* Contact Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Informações de Contato</h3>
+
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3">
+                <Mail className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Email</p>
+                  <p className="text-muted-foreground">{member.email}</p>
+                </div>
+              </div>
+
+              {member.phone && (
+                <div className="flex items-center space-x-3">
+                  <Phone className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Telefone</p>
+                    <p className="text-muted-foreground">{member.phone}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              )}
 
-        <div className="flex justify-end pt-4">
-          <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+              {member.location && (
+                <div className="flex items-center space-x-3">
+                  <MapPin className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Localização</p>
+                    <p className="text-muted-foreground">{member.location}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-3">
+                <Calendar className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Membro desde</p>
+                  <p className="text-muted-foreground">{formatDate(member.created_at)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Activity Status */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Status de Atividade</h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <UserCheck className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                <div className="text-2xl font-bold">Ativo</div>
+                <div className="text-xs text-muted-foreground">Status</div>
+              </div>
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <Clock className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                <div className="text-2xl font-bold">{member.updated_at ? formatDate(member.updated_at) : "N/A"}</div>
+                <div className="text-xs text-muted-foreground">Última atividade</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-3">
+            {onMessage && (
+              <Button onClick={() => onMessage(member)} className="flex-1" disabled={loading}>
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Enviar Mensagem
+              </Button>
+            )}
+            {onEdit && (
+              <Button variant="outline" onClick={() => onEdit(member)} disabled={loading}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

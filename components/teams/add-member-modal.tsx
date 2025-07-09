@@ -61,7 +61,7 @@ export function AddMemberModal({ open, onOpenChange, onMemberAdded }: AddMemberM
         phone: formData.phone.trim() || undefined,
         role: formData.role.trim(),
         location: formData.location.trim() || undefined,
-        online_status: false,
+        online_status: true,
       })
 
       if (newMember) {
@@ -99,8 +99,8 @@ export function AddMemberModal({ open, onOpenChange, onMemberAdded }: AddMemberM
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Adicionar Membro da Equipe</DialogTitle>
-          <DialogDescription>Adicione um novo membro à sua equipe</DialogDescription>
+          <DialogTitle>Adicionar Membro</DialogTitle>
+          <DialogDescription>Adicione um novo membro à equipe</DialogDescription>
         </DialogHeader>
 
         {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{error}</div>}
@@ -157,11 +157,9 @@ export function AddMemberModal({ open, onOpenChange, onMemberAdded }: AddMemberM
                     <SelectItem value="Gerente de Projeto">Gerente de Projeto</SelectItem>
                     <SelectItem value="QA Tester">QA Tester</SelectItem>
                     <SelectItem value="DevOps">DevOps</SelectItem>
-                    <SelectItem value="Product Owner">Product Owner</SelectItem>
-                    <SelectItem value="Scrum Master">Scrum Master</SelectItem>
-                    <SelectItem value="Analista">Analista</SelectItem>
-                    <SelectItem value="Arquiteto">Arquiteto</SelectItem>
-                    <SelectItem value="Outro">Outro</SelectItem>
+                    <SelectItem value="Product Manager">Product Manager</SelectItem>
+                    <SelectItem value="UI/UX Designer">UI/UX Designer</SelectItem>
+                    <SelectItem value="Analista de Sistemas">Analista de Sistemas</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

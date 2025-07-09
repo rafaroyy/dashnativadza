@@ -1,41 +1,25 @@
 "use client"
+import { useState } from "react"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Calendar, Clock, MoreHorizontal, Edit, Trash2, CheckCircle, AlertCircle } from "lucide-react"
+import { Calendar, Clock, MoreVertical, Edit, Trash2, CheckCircle, AlertCircle, User } from "lucide-react"
+import type { Task, User as UserType, Project } from "@/lib/supabase"
 
 interface TaskCardProps {
-  task: {
-    id: string
-    title: string
-    description: string
-    status: string
-    priority: string
-    due_date: string
-    completed: boolean
-    assigned_to_user?: {
-      id: string
-      name: string
-      email: string
-      profile_image_url?: string
-    }
-    project?: {
-      id: string
-      title: string
-    }
-    space?: {
-      id: string
-      name: string
-      space_color?: string
-    }
-  }
-  onEdit?: (task: any) => void
+  task: Task
+  user?: UserType
+  project?: Project
+  onEdit?: (task: Task) => void
   onDelete?: (taskId: string) => void
   onStatusChange?: (taskId: string, status: string) => void
 }
 
-export function TaskCard({ task, onEdit, onDelete, onStatusChange }: TaskCardProps) {
+export function TaskCard({ task, user, project, onEdit, onDelete, onStatusChange }: TaskCardProps) {
+  const [isUpdating, setIsUpdating] = useState(false)
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
@@ -65,15 +49,15 @@ export function TaskCard({ task, onEdit, onDelete, onStatusChange }: TaskCardPro
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "urgent":
-        return "bg-red-100 text-red-800 border-red-200"
+        return "text-red-600 bg-red-50 border-red-200"
       case "high":
-        return "bg-orange-100 text-orange-800 border-orange-200"
+        return "text-orange-600 bg-orange-50 border-orange-200"
       case "normal":
-        return "bg-blue-100 text-blue-800 border-blue-200"
+        return "text-blue-600 bg-blue-50 border-blue-200"
       case "low":
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "text-gray-600 bg-gray-50 border-gray-200"
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "text-gray-600 bg-gray-50 border-gray-200"
     }
   }
 
@@ -92,131 +76,158 @@ export function TaskCard({ task, onEdit, onDelete, onStatusChange }: TaskCardPro
     }
   }
 
-  const isOverdue = () => {
-    const dueDate = new Date(task.due_date)
-    const now = new Date()
-    return dueDate < now && task.status !== "completed"
-  }
-
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffTime = date.getTime() - now.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    if (!dateString) return null
+    return new Date(dateString).toLocaleDateString("pt-BR")
+  }
 
-    if (diffDays === 0) {
-      return "Hoje"
-    } else if (diffDays === 1) {
-      return "Amanhã"
-    } else if (diffDays === -1) {
-      return "Ontem"
-    } else if (diffDays > 1) {
-      return `Em ${diffDays} dias`
-    } else {
-      return `${Math.abs(diffDays)} dias atrás`
+  const isOverdue = (dateString: string) => {
+    if (!dateString || task.completed) return false
+    return new Date(dateString) < new Date()
+  }
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (onStatusChange && !isUpdating) {
+      setIsUpdating(true)
+      try {
+        await onStatusChange(task.id, newStatus)
+      } finally {
+        setIsUpdating(false)
+      }
     }
   }
 
-  const handleStatusChange = (newStatus: string) => {
-    if (onStatusChange) {
-      onStatusChange(task.id, newStatus)
+  const getNextStatus = () => {
+    switch (task.status) {
+      case "todo":
+        return "in-progress"
+      case "in-progress":
+        return "completed"
+      case "completed":
+        return "todo"
+      default:
+        return "in-progress"
     }
+  }
+
+  const getNextStatusText = () => {
+    const nextStatus = getNextStatus()
+    return getStatusText(nextStatus)
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-gray-900 truncate mb-1">{task.title}</h3>
-          <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
-        </div>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {onEdit && (
-              <DropdownMenuItem onClick={() => onEdit(task)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar
-              </DropdownMenuItem>
-            )}
-            {onStatusChange && task.status !== "completed" && (
-              <DropdownMenuItem onClick={() => handleStatusChange("completed")}>
+    <Card className={`transition-all duration-200 hover:shadow-md ${task.completed ? "opacity-75" : ""}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-2">
+              <Badge className={getStatusColor(task.status)}>{getStatusText(task.status)}</Badge>
+              <Badge variant="outline" className={getPriorityColor(task.priority)}>
+                {getPriorityText(task.priority)}
+              </Badge>
+            </div>
+            <h3
+              className={`font-semibold text-lg leading-tight ${task.completed ? "line-through text-muted-foreground" : ""}`}
+            >
+              {task.title}
+            </h3>
+            {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleStatusChange(getNextStatus())} disabled={isUpdating}>
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Marcar como Concluído
+                Marcar como {getNextStatusText()}
               </DropdownMenuItem>
-            )}
-            {onStatusChange && task.status === "completed" && (
-              <DropdownMenuItem onClick={() => handleStatusChange("todo")}>
-                <Clock className="h-4 w-4 mr-2" />
-                Reabrir Tarefa
-              </DropdownMenuItem>
-            )}
-            {onDelete && (
-              <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-600 focus:text-red-600">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Excluir
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Status and Priority */}
-      <div className="flex items-center space-x-2 mb-3">
-        <Badge className={getStatusColor(task.status)} variant="outline">
-          {getStatusText(task.status)}
-        </Badge>
-        <Badge className={getPriorityColor(task.priority)} variant="outline">
-          {getPriorityText(task.priority)}
-        </Badge>
-      </div>
-
-      {/* Project and Space */}
-      <div className="space-y-1 mb-3 text-xs text-gray-500">
-        {task.project && (
-          <div className="flex items-center space-x-1">
-            <span>📁</span>
-            <span>{task.project.title}</span>
-          </div>
-        )}
-        {task.space && (
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: task.space.space_color || "#3B82F6" }} />
-            <span>{task.space.name}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Due Date */}
-      <div className="flex items-center justify-between">
-        <div className={`flex items-center space-x-1 text-xs ${isOverdue() ? "text-red-600" : "text-gray-500"}`}>
-          {isOverdue() ? <AlertCircle className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
-          <span>{formatDate(task.due_date)}</span>
+              {onEdit && (
+                <DropdownMenuItem onClick={() => onEdit(task)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-600 focus:text-red-600">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+      </CardHeader>
 
-        {/* Assigned User */}
-        {task.assigned_to_user && (
-          <div className="flex items-center space-x-2">
-            <Avatar className="h-6 w-6">
-              <AvatarImage src={task.assigned_to_user.profile_image_url || "/placeholder.svg"} />
-              <AvatarFallback className="text-xs">
-                {task.assigned_to_user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-xs text-gray-600 hidden sm:inline">{task.assigned_to_user.name}</span>
+      <CardContent className="pt-0">
+        <div className="space-y-3">
+          {/* Project Info */}
+          {project && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <div className="w-2 h-2 rounded-full bg-primary mr-2" />
+              <span className="truncate">{project.title}</span>
+            </div>
+          )}
+
+          {/* Assigned User */}
+          {user && (
+            <div className="flex items-center space-x-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={user.profile_image_url || "/placeholder.svg"} alt={user.name} />
+                <AvatarFallback className="text-xs">
+                  {user.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm text-muted-foreground truncate">{user.name}</span>
+            </div>
+          )}
+
+          {/* Due Date */}
+          {task.due_date && (
+            <div
+              className={`flex items-center space-x-2 text-sm ${
+                isOverdue(task.due_date) ? "text-red-600" : "text-muted-foreground"
+              }`}
+            >
+              {isOverdue(task.due_date) ? <AlertCircle className="h-4 w-4" /> : <Calendar className="h-4 w-4" />}
+              <span>
+                {isOverdue(task.due_date) ? "Atrasada: " : "Entrega: "}
+                {formatDate(task.due_date)}
+              </span>
+            </div>
+          )}
+
+          {/* Created Date */}
+          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span>Criada em {formatDate(task.created_at)}</span>
           </div>
-        )}
-      </div>
-    </div>
+
+          {/* Quick Action Button */}
+          <div className="pt-2">
+            <Button
+              variant={task.completed ? "outline" : "default"}
+              size="sm"
+              className="w-full"
+              onClick={() => handleStatusChange(getNextStatus())}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              {isUpdating ? "Atualizando..." : `Marcar como ${getNextStatusText()}`}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

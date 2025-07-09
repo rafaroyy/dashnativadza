@@ -52,7 +52,6 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
     setError(null)
 
     try {
-      // Load all data in parallel
       const [usersData, projectsData, spacesData] = await Promise.all([
         dbOperations.getUsers().catch((err) => {
           console.error("Error loading users:", err)
@@ -72,7 +71,6 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
       setProjects(projectsData || [])
       setSpaces(spacesData || [])
 
-      // Check if we have the minimum required data
       if (!usersData || usersData.length === 0) {
         setError("Nenhum usuário encontrado. Adicione usuários primeiro.")
       } else if (!projectsData || projectsData.length === 0) {
@@ -92,7 +90,6 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
     setError(null)
 
     try {
-      // Validate required fields
       if (!formData.title.trim()) {
         throw new Error("Título é obrigatório")
       }
@@ -109,7 +106,6 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
         throw new Error("Data de entrega é obrigatória")
       }
 
-      // Create the task
       const newTask = await dbOperations.createTask({
         title: formData.title.trim(),
         description: formData.description.trim(),
@@ -121,10 +117,7 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
         priority: formData.priority,
       })
 
-      // Call the callback with the new task
       onTaskAdded(newTask)
-
-      // Close modal and reset form
       onOpenChange(false)
       setFormData({
         title: "",
@@ -205,7 +198,7 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="no-user" disabled>
+                        <SelectItem value="no-users" disabled>
                           Nenhum usuário disponível
                         </SelectItem>
                       )}
@@ -231,7 +224,7 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value="no-project" disabled>
+                        <SelectItem value="no-projects" disabled>
                           Nenhum projeto disponível
                         </SelectItem>
                       )}
@@ -248,10 +241,9 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, space_id: value }))}
                   >
                     <SelectTrigger id="task-space">
-                      <SelectValue placeholder="Selecione um espaço" />
+                      <SelectValue placeholder="Selecione um espaço (opcional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum espaço</SelectItem>
                       {spaces.map((space) => (
                         <SelectItem key={space.id} value={space.id}>
                           {space.name}
@@ -268,7 +260,7 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, priority: value }))}
                   >
                     <SelectTrigger id="task-priority">
-                      <SelectValue />
+                      <SelectValue placeholder="Selecione a prioridade" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="low">Baixa</SelectItem>
@@ -288,7 +280,7 @@ export function AddTaskModal({ open, onOpenChange, onTaskAdded }: AddTaskModalPr
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
                   >
                     <SelectTrigger id="task-status">
-                      <SelectValue />
+                      <SelectValue placeholder="Selecione o status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todo">A Fazer</SelectItem>
