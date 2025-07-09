@@ -1,44 +1,17 @@
-"use client"
+import { redirect } from "next/navigation"
+import type { ReactNode } from "react"
+import { createClient } from "@/lib/supabase/server"
 
-import type React from "react"
-import { useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+/**
+ * Server Component that redirects to /login
+ * when the user is not authenticated.
+ */
+export default async function AuthGuard({ children }: { children: ReactNode }) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-interface AuthGuardProps {
-  children: React.ReactNode
-}
-
-export default function AuthGuard({ children }: AuthGuardProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
-  const router = useRouter()
-  const pathname = usePathname()
-
-  useEffect(() => {
-    const checkAuth = () => {
-      if (typeof window !== "undefined") {
-        const token = localStorage.getItem("user_token")
-        const isAuth = !!token
-        setIsAuthenticated(isAuth)
-
-        // Public routes that don't require authentication
-        const publicRoutes = ["/", "/login"]
-
-        if (!isAuth && !publicRoutes.includes(pathname)) {
-          router.push("/login")
-        }
-      }
-    }
-
-    checkAuth()
-  }, [router, pathname])
-
-  if (isAuthenticated === null) {
-    return (
-      <div className="min-h-screen bg-digitalz-dark flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-digitalz-cyan"></div>
-      </div>
-    )
-  }
-
+  if (!user) redirect("/login")
   return <>{children}</>
 }
