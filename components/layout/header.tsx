@@ -12,13 +12,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { signOut } from "@/app/auth/actions"
-import { getUser } from "@/lib/supabase/server"
-import { dbOperations } from "@/lib/supabase"
 
-export default async function Header() {
-  const authUser = await getUser()
-  const user = authUser ? await dbOperations.getUserById(authUser.id) : null
+interface HeaderProps {
+  user?: {
+    id: string
+    name: string
+    email: string
+    profile_image_url?: string
+  } | null
+}
 
+export default function Header({ user }: HeaderProps) {
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center px-4">
@@ -41,14 +45,14 @@ export default async function Header() {
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user?.profile_image_url || "/placeholder.svg"} alt={user?.name} />
-                  <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                  <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user?.name}</p>
+                  <p className="text-sm font-medium leading-none">{user?.name || "Usuário"}</p>
                   <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>

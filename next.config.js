@@ -7,11 +7,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    domains: ["api.dicebear.com"],
+    domains: ["placeholder.svg"],
     unoptimized: true,
-  },
-  env: {
-    CUSTOM_KEY: "my-value",
   },
 }
 

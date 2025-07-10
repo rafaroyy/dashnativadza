@@ -1,96 +1,71 @@
 "use server"
 
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { dbOperations } from "@/lib/supabase"
+import bcrypt from "bcryptjs"
 
-export async function signInWithEmail(formData: FormData) {
-  try {
-    const email = String(formData.get("email") ?? "").trim()
-    const password = String(formData.get("password") ?? "").trim()
+export async function signIn(formData: FormData) {
+  const email = formData.get("email") as string
+  const password = formData.get("password") as string
 
-    console.log("=== LOGIN ATTEMPT ===")
-    console.log("Email:", email)
-    console.log("Password provided:", password ? "yes" : "no")
-
-    if (!email || !password) {
-      console.log("Missing email or password")
-      return { error: "Email e senha são obrigatórios" }
-    }
-
-    // Verificar credenciais na tabela users
-    const user = await dbOperations.getUserByEmailAndPassword(email, password)
-
-    if (!user) {
-      console.log("Invalid credentials")
-      return { error: "Credenciais inválidas" }
-    }
-
-    console.log("Login successful for:", user.email)
-    redirect("/dashboard")
-  } catch (error) {
-    console.error("=== LOGIN ERROR ===", error)
-    return { error: "Erro interno do servidor" }
+  if (!email || !password) {
+    return { error: "Email e senha são obrigatórios" }
   }
-}
 
-export async function signUpWithEmail(formData: FormData) {
   try {
-    const name = String(formData.get("name") ?? "").trim()
-    const email = String(formData.get("email") ?? "").trim()
-    const password = String(formData.get("password") ?? "").trim()
+    const supabase = createClient()
 
-    console.log("=== SIGNUP ATTEMPT ===")
-    console.log("Name:", name)
-    console.log("Email:", email)
-    console.log("Password provided:", password ? "yes" : "no")
+    // Busca o usuário na tabela users
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("id, email, password, name")
+      .eq("email", email)
+      .single()
 
-    if (!name || !email || !password) {
-      console.log("Missing required fields")
-      return { error: "Todos os campos são obrigatórios" }
+    if (userError || !user) {
+      return { error: "Usuário não encontrado" }
     }
 
-    // Validar formato do email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      console.log("Invalid email format")
-      return { error: "Formato de email inválido" }
+    // Verifica a senha
+    const isPasswordValid = await bcrypt.compare(password, user.password)
+    if (!isPasswordValid) {
+      return { error: "Senha inválida" }
     }
 
-    // Verificar se o email já existe
-    const existingUser = await dbOperations.getUserByEmail(email)
-
-    if (existingUser) {
-      console.log("Email already exists")
-      return { error: "Este email já está em uso" }
-    }
-
-    // Criar usuário na tabela users
-    const newUser = await dbOperations.createUser({
-      name,
+    // Cria sessão no Supabase Auth
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
-      password,
-      profile_image_url: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(name)}`,
+      password: "dummy-password", // Usamos uma senha dummy pois a verificação real já foi feita
     })
 
-    if (!newUser) {
-      console.log("Failed to create user")
-      return { error: "Erro ao criar usuário. Tente novamente." }
+    if (signInError) {
+      // Se não existe no auth, cria
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: "dummy-password",
+        options: {
+          data: {
+            name: user.name,
+            user_id: user.id,
+          },
+        },
+      })
+
+      if (signUpError) {
+        console.error("Erro ao criar sessão:", signUpError)
+        return { error: "Erro interno do servidor" }
+      }
     }
 
-    console.log("Signup successful for:", newUser.email)
     redirect("/dashboard")
   } catch (error) {
-    console.error("=== SIGNUP ERROR ===", error)
+    console.error("Erro no login:", error)
     return { error: "Erro interno do servidor" }
   }
 }
 
 export async function signOut() {
-  try {
-    console.log("User signing out")
-    redirect("/login")
-  } catch (error) {
-    console.error("Signout error:", error)
-    redirect("/login")
-  }
+  const supabase = createClient()
+  await supabase.auth.signOut()
+  redirect("/login")
 }

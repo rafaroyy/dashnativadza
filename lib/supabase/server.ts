@@ -1,19 +1,31 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
-export async function createClient() {
-  const cookieStore = await cookies()
+// Server-only file: garante que rode no servidor
+export const dynamic = "force-dynamic"
+
+export function createClient() {
+  const cookieStore = cookies() // sem await
 
   return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
-      getAll() {
-        return cookieStore.getAll()
+      get(name: string) {
+        return cookieStore.get(name)?.value
       },
-      setAll(cookiesToSet) {
+      set(name: string, value: string, options: any) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+          cookieStore.set(name, value, options)
         } catch {
-          // The `setAll` method was called from a Server Component.
+          // The `set` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
+        }
+      },
+      remove(name: string, options: any) {
+        try {
+          cookieStore.set(name, "", options)
+        } catch {
+          // The `remove` method was called from a Server Component.
           // This can be ignored if you have middleware refreshing
           // user sessions.
         }
@@ -23,7 +35,7 @@ export async function createClient() {
 }
 
 export async function getUser() {
-  const supabase = await createClient()
+  const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -31,7 +43,7 @@ export async function getUser() {
 }
 
 export async function getSession() {
-  const supabase = await createClient()
+  const supabase = createClient()
   const {
     data: { session },
   } = await supabase.auth.getSession()
