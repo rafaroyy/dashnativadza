@@ -10,9 +10,7 @@ export function DigitalzLogo({ className }: DigitalzLogoProps) {
       <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
         <span className="text-white font-bold text-sm">D</span>
       </div>
-      <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-        DigitalZ
-      </span>
+      <span className="font-bold text-xl text-foreground">DigitalZ</span>
     </div>
   )
 }
