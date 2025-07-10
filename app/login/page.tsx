@@ -1,7 +1,5 @@
 "use client"
 
-export const dynamic = "force-dynamic"
-
 import { useState } from "react"
 import { signInWithEmail, signUpWithEmail } from "@/app/auth/actions"
 import { Button } from "@/components/ui/button"
@@ -9,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
@@ -90,9 +87,7 @@ export default function LoginPage() {
                 </div>
 
                 {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
+                  <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">{error}</div>
                 )}
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
@@ -145,9 +140,7 @@ export default function LoginPage() {
                 </div>
 
                 {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
+                  <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">{error}</div>
                 )}
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
