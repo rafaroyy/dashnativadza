@@ -1,51 +1,42 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
-// Server-only file: garante que rode no servidor
 export const dynamic = "force-dynamic"
 
-export function createClient() {
-  const cookieStore = cookies() // sem await
+/**
+ * Cria um SupabaseClient apenas no lado do servidor.
+ * Mantém a sessão via cookies utilizando a API do Next.js 15.
+ */
+export function createClient(): SupabaseClient {
+  const cookieStore = cookies() // sem await!
 
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !anon) throw new Error("Variáveis NEXT_PUBLIC_SUPABASE_URL / ANON_KEY não definidas.")
+
+  return createServerClient(url, anon, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
+      getAll() {
+        return cookieStore.getAll()
       },
-      set(name: string, value: string, options: any) {
+      setAll(cookiesToSet) {
+        // Tentamos gravar; se estivermos num Server Component, ignoramos.
         try {
-          cookieStore.set(name, value, options)
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
         } catch {
-          // The `set` method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing
-          // user sessions.
-        }
-      },
-      remove(name: string, options: any) {
-        try {
-          cookieStore.set(name, "", options)
-        } catch {
-          // The `remove` method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing
-          // user sessions.
+          /* ignore */
         }
       },
     },
   })
 }
 
+/**
+ * Helper para obter o usuário autenticado (ou null).
+ */
 export async function getUser() {
   const supabase = createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
-}
-
-export async function getSession() {
-  const supabase = createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  return session
+  const { data } = await supabase.auth.getUser()
+  return data.user ?? null
 }

@@ -1,71 +1,40 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import bcrypt from "bcryptjs"
+import { revalidatePath } from "next/cache"
+import { cookies } from "next/headers"
+import { dbOperations } from "@/lib/supabase"
 
-export async function signIn(formData: FormData) {
-  const email = formData.get("email") as string
-  const password = formData.get("password") as string
+export async function loginAction(formData: FormData) {
+  const email = (formData.get("email") as string)?.trim().toLowerCase()
+  const password = (formData.get("password") as string) ?? ""
 
   if (!email || !password) {
-    return { error: "Email e senha são obrigatórios" }
+    redirect("/login?error=Preencha%20todos%20os%20campos")
   }
 
-  try {
-    const supabase = createClient()
+  // Consulta direta à tabela users (sem Supabase Auth Helpers)
+  const user = await dbOperations.getUserByEmail(email)
 
-    // Busca o usuário na tabela users
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id, email, password, name")
-      .eq("email", email)
-      .single()
-
-    if (userError || !user) {
-      return { error: "Usuário não encontrado" }
-    }
-
-    // Verifica a senha
-    const isPasswordValid = await bcrypt.compare(password, user.password)
-    if (!isPasswordValid) {
-      return { error: "Senha inválida" }
-    }
-
-    // Cria sessão no Supabase Auth
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password: "dummy-password", // Usamos uma senha dummy pois a verificação real já foi feita
-    })
-
-    if (signInError) {
-      // Se não existe no auth, cria
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password: "dummy-password",
-        options: {
-          data: {
-            name: user.name,
-            user_id: user.id,
-          },
-        },
-      })
-
-      if (signUpError) {
-        console.error("Erro ao criar sessão:", signUpError)
-        return { error: "Erro interno do servidor" }
-      }
-    }
-
-    redirect("/dashboard")
-  } catch (error) {
-    console.error("Erro no login:", error)
-    return { error: "Erro interno do servidor" }
+  if (!user || user.password !== password) {
+    redirect("/login?error=Credenciais%20inv%C3%A1lidas")
   }
+
+  // Salvamos algo simples em cookie: id, name, email (exemplo rápido)
+  const cookieStore = cookies()
+  cookieStore.set("user_session", JSON.stringify({ id: user.id, name: user.name, email: user.email }), {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 dias
+  })
+
+  revalidatePath("/dashboard") // apenas exemplo
+  redirect("/dashboard")
 }
 
 export async function signOut() {
-  const supabase = createClient()
-  await supabase.auth.signOut()
+  const cookieStore = cookies()
+  cookieStore.delete("user_session")
   redirect("/login")
 }

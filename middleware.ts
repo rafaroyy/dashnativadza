@@ -58,13 +58,26 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  const userSession = request.cookies.get("user_session")
+  const { pathname } = request.nextUrl
+
+  // Se está tentando acessar o dashboard sem estar logado
+  if (pathname.startsWith("/dashboard") && !userSession) {
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
+
+  // Se está logado e tentando acessar login, redireciona para dashboard
+  if (pathname === "/login" && userSession) {
+    return NextResponse.redirect(new URL("/dashboard", request.url))
+  }
+
   // Redireciona para login se não autenticado e tentando acessar rota protegida
-  if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
+  if (!user && pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
   // Redireciona para dashboard se autenticado e tentando acessar login
-  if (user && request.nextUrl.pathname === "/login") {
+  if (user && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
@@ -72,5 +85,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/dashboard/:path*", "/login"],
 }
