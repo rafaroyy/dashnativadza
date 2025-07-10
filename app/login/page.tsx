@@ -1,119 +1,88 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
-import { signIn, signUp } from "@/app/auth/actions"
+import { signInWithEmail } from "@/app/auth/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DigitalzLogo } from "@/components/ui/digitalz-logo"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, setIsPending] = useState(false)
 
-  const handleSignIn = async (formData: FormData) => {
-    setIsLoading(true)
-    setError("")
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsPending(true)
+    setError(null)
 
-    const result = await signIn(formData)
-
-    if (result?.error) {
-      setError(result.error)
-    }
-
-    setIsLoading(false)
-  }
-
-  const handleSignUp = async (formData: FormData) => {
-    setIsLoading(true)
-    setError("")
-
-    const result = await signUp(formData)
+    const formData = new FormData(e.currentTarget)
+    const result = await signInWithEmail(formData)
 
     if (result?.error) {
       setError(result.error)
     }
-
-    setIsLoading(false)
+    // A redireção em caso de sucesso é tratada pela Server Action
+    setIsPending(false)
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">ClickUp Clone</h2>
-          <p className="mt-2 text-sm text-gray-600">Gerencie seus projetos e tarefas</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <DigitalzLogo className="mx-auto mb-4" />
+          <CardTitle>Entrar</CardTitle>
+          <CardDescription>Entre na sua conta para continuar</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" placeholder="seu@email.com" required />
+            </div>
 
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="register">Cadastro</TabsTrigger>
-          </TabsList>
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Sua senha"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
 
-          <TabsContent value="login">
-            <Card>
-              <CardHeader>
-                <CardTitle>Fazer Login</CardTitle>
-                <CardDescription>Entre com suas credenciais para acessar sua conta</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form action={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" name="email" type="email" required placeholder="seu@email.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Senha</Label>
-                    <Input id="password" name="password" type="password" required placeholder="••••••••" />
-                  </div>
-                  {error && <div className="text-red-600 text-sm">{error}</div>}
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Entrando..." : "Entrar"}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
-          <TabsContent value="register">
-            <Card>
-              <CardHeader>
-                <CardTitle>Criar Conta</CardTitle>
-                <CardDescription>Crie uma nova conta para começar a usar</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form action={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome</Label>
-                    <Input id="name" name="name" type="text" required placeholder="Seu nome completo" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" name="email" type="email" required placeholder="seu@email.com" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Senha</Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      minLength={6}
-                    />
-                  </div>
-                  {error && <div className="text-red-600 text-sm">{error}</div>}
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Criando conta..." : "Criar conta"}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+            <Button type="submit" className="w-full gradient-bg" disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Entrar
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-gray-600">
+            <p>Usuários de teste:</p>
+            <p>joao@example.com / senha: 123</p>
+            <p>maria@example.com / senha: 123</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

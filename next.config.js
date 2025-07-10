@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -8,7 +7,11 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
+    domains: ["api.dicebear.com"],
     unoptimized: true,
+  },
+  env: {
+    CUSTOM_KEY: "my-value",
   },
 }
 

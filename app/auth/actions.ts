@@ -1,97 +1,96 @@
 "use server"
 
-import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { revalidatePath } from "next/cache"
+import { dbOperations } from "@/lib/supabase"
 
-export async function signIn(formData: FormData) {
-  const email = formData.get("email") as string
-  const password = formData.get("password") as string
-
-  if (!email || !password) {
-    return { error: "Email e senha são obrigatórios" }
-  }
-
+export async function signInWithEmail(formData: FormData) {
   try {
-    const supabase = await createServerClient()
+    const email = String(formData.get("email") ?? "").trim()
+    const password = String(formData.get("password") ?? "").trim()
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    console.log("=== LOGIN ATTEMPT ===")
+    console.log("Email:", email)
+    console.log("Password provided:", password ? "yes" : "no")
 
-    if (error) {
-      console.error("Erro no login:", error)
-      return { error: error.message }
+    if (!email || !password) {
+      console.log("Missing email or password")
+      return { error: "Email e senha são obrigatórios" }
     }
 
-    revalidatePath("/", "layout")
+    // Verificar credenciais na tabela users
+    const user = await dbOperations.getUserByEmailAndPassword(email, password)
+
+    if (!user) {
+      console.log("Invalid credentials")
+      return { error: "Credenciais inválidas" }
+    }
+
+    console.log("Login successful for:", user.email)
     redirect("/dashboard")
   } catch (error) {
-    console.error("Erro interno no login:", error)
+    console.error("=== LOGIN ERROR ===", error)
     return { error: "Erro interno do servidor" }
   }
 }
 
-export async function signUp(formData: FormData) {
-  const email = formData.get("email") as string
-  const password = formData.get("password") as string
-  const name = formData.get("name") as string
-
-  if (!email || !password || !name) {
-    return { error: "Todos os campos são obrigatórios" }
-  }
-
+export async function signUpWithEmail(formData: FormData) {
   try {
-    const supabase = await createServerClient()
+    const name = String(formData.get("name") ?? "").trim()
+    const email = String(formData.get("email") ?? "").trim()
+    const password = String(formData.get("password") ?? "").trim()
 
-    const { data, error } = await supabase.auth.signUp({
+    console.log("=== SIGNUP ATTEMPT ===")
+    console.log("Name:", name)
+    console.log("Email:", email)
+    console.log("Password provided:", password ? "yes" : "no")
+
+    if (!name || !email || !password) {
+      console.log("Missing required fields")
+      return { error: "Todos os campos são obrigatórios" }
+    }
+
+    // Validar formato do email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      console.log("Invalid email format")
+      return { error: "Formato de email inválido" }
+    }
+
+    // Verificar se o email já existe
+    const existingUser = await dbOperations.getUserByEmail(email)
+
+    if (existingUser) {
+      console.log("Email already exists")
+      return { error: "Este email já está em uso" }
+    }
+
+    // Criar usuário na tabela users
+    const newUser = await dbOperations.createUser({
+      name,
       email,
       password,
-      options: {
-        data: {
-          name: name,
-        },
-      },
+      profile_image_url: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(name)}`,
     })
 
-    if (error) {
-      console.error("Erro no cadastro:", error)
-      return { error: error.message }
+    if (!newUser) {
+      console.log("Failed to create user")
+      return { error: "Erro ao criar usuário. Tente novamente." }
     }
 
-    // Criar perfil do usuário
-    if (data.user) {
-      const { error: profileError } = await supabase.from("users").insert([
-        {
-          id: data.user.id,
-          email: data.user.email,
-          name: name,
-          created_at: new Date().toISOString(),
-        },
-      ])
-
-      if (profileError) {
-        console.error("Erro ao criar perfil:", profileError)
-      }
-    }
-
-    revalidatePath("/", "layout")
+    console.log("Signup successful for:", newUser.email)
     redirect("/dashboard")
   } catch (error) {
-    console.error("Erro interno no cadastro:", error)
+    console.error("=== SIGNUP ERROR ===", error)
     return { error: "Erro interno do servidor" }
   }
 }
 
 export async function signOut() {
   try {
-    const supabase = await createServerClient()
-    await supabase.auth.signOut()
-    revalidatePath("/", "layout")
+    console.log("User signing out")
     redirect("/login")
   } catch (error) {
-    console.error("Erro no logout:", error)
-    return { error: "Erro ao fazer logout" }
+    console.error("Signout error:", error)
+    redirect("/login")
   }
 }
