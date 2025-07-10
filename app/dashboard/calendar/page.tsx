@@ -1,18 +1,16 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Calendar } from "lucide-react"
+export const dynamic = "force-dynamic"
 
-export default function CalendarPage() {
-  return (
-    <Card className="digitalz-card">
-      <CardHeader>
-        <CardTitle className="flex items-center text-white">
-          <Calendar className="w-6 h-6 mr-3 text-digitalz-cyan" />
-          Calendário
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-gray-400">A visualização de calendário com tarefas e eventos será implementada aqui.</p>
-      </CardContent>
-    </Card>
-  )
+import { createClient } from "@/lib/supabase/server"
+import CalendarClient from "./calendar-client"
+
+/**
+ * Server Component.
+ * Busca todos os eventos/tarefas com due_date definido e passa para o Client Component.
+ */
+export default async function CalendarPage() {
+  const supabase = await createClient()
+
+  const { data: tasks } = await supabase.from("tasks").select("*").order("due_date", { ascending: true })
+
+  return <CalendarClient tasks={tasks ?? []} />
 }

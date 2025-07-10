@@ -1,18 +1,16 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { FolderOpen } from "lucide-react"
+export const dynamic = "force-dynamic"
 
-export default function ProjectsPage() {
-  return (
-    <Card className="digitalz-card">
-      <CardHeader>
-        <CardTitle className="flex items-center text-white">
-          <FolderOpen className="w-6 h-6 mr-3 text-digitalz-cyan" />
-          Projetos
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-gray-400">A área de gerenciamento de projetos será implementada aqui.</p>
-      </CardContent>
-    </Card>
-  )
+import { createClient } from "@/lib/supabase/server"
+import ProjectsClient from "./projects-client"
+
+/**
+ * Server Component.
+ * Busca todos os projetos para exibir no dashboard de projetos.
+ */
+export default async function ProjectsPage() {
+  const supabase = await createClient()
+
+  const { data: projects } = await supabase.from("projects").select("*").order("created_at", { ascending: false })
+
+  return <ProjectsClient projects={projects ?? []} />
 }
