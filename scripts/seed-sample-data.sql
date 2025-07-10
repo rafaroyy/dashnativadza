@@ -1,140 +1,52 @@
--- Inserir usuários de exemplo (todos com senha "123")
-INSERT INTO users (name, email, password, role, profile_image_url, online_status) VALUES
-('João Silva', 'joao@example.com', '123', 'admin', 'https://api.dicebear.com/8.x/initials/svg?seed=João Silva', true),
-('Maria Santos', 'maria@example.com', '123', 'manager', 'https://api.dicebear.com/8.x/initials/svg?seed=Maria Santos', true),
-('Pedro Oliveira', 'pedro@example.com', '123', 'member', 'https://api.dicebear.com/8.x/initials/svg?seed=Pedro Oliveira', false),
-('Ana Costa', 'ana@example.com', '123', 'member', 'https://api.dicebear.com/8.x/initials/svg?seed=Ana Costa', true),
-('Carlos Ferreira', 'carlos@example.com', '123', 'member', 'https://api.dicebear.com/8.x/initials/svg?seed=Carlos Ferreira', false)
-ON CONFLICT (email) DO NOTHING;
+-- Insert sample users (all with password "123")
+INSERT INTO users (id, name, email, password, role, profile_image_url, online_status) VALUES
+('550e8400-e29b-41d4-a716-446655440001', 'João Silva', 'joao@example.com', '123', 'admin', 'https://api.dicebear.com/8.x/initials/svg?seed=João Silva', true),
+('550e8400-e29b-41d4-a716-446655440002', 'Maria Santos', 'maria@example.com', '123', 'manager', 'https://api.dicebear.com/8.x/initials/svg?seed=Maria Santos', true),
+('550e8400-e29b-41d4-a716-446655440003', 'Pedro Costa', 'pedro@example.com', '123', 'member', 'https://api.dicebear.com/8.x/initials/svg?seed=Pedro Costa', false),
+('550e8400-e29b-41d4-a716-446655440004', 'Ana Oliveira', 'ana@example.com', '123', 'member', 'https://api.dicebear.com/8.x/initials/svg?seed=Ana Oliveira', true),
+('550e8400-e29b-41d4-a716-446655440005', 'Carlos Ferreira', 'carlos@example.com', '123', 'member', 'https://api.dicebear.com/8.x/initials/svg?seed=Carlos Ferreira', false)
+ON CONFLICT (id) DO NOTHING;
 
--- Inserir workspace de exemplo
-INSERT INTO workspaces (name, description, owner_id) 
-SELECT 'Workspace Principal', 'Workspace principal da empresa', id 
-FROM users WHERE email = 'joao@example.com' LIMIT 1
-ON CONFLICT DO NOTHING;
+-- Insert sample workspaces
+INSERT INTO workspaces (id, name, description, owner_id) VALUES
+('660e8400-e29b-41d4-a716-446655440001', 'Digitalz Workspace', 'Workspace principal da empresa', '550e8400-e29b-41d4-a716-446655440001'),
+('660e8400-e29b-41d4-a716-446655440002', 'Projetos Especiais', 'Workspace para projetos especiais', '550e8400-e29b-41d4-a716-446655440002')
+ON CONFLICT (id) DO NOTHING;
 
--- Inserir projetos de exemplo
-INSERT INTO projects (name, description, workspace_id, status, color, progress, deadline, created_by)
-SELECT 
-    'Sistema de Vendas',
-    'Desenvolvimento do novo sistema de vendas online',
-    w.id,
-    'active',
-    '#3b82f6',
-    75,
-    NOW() + INTERVAL '30 days',
-    u.id
-FROM workspaces w, users u 
-WHERE w.name = 'Workspace Principal' AND u.email = 'joao@example.com'
-UNION ALL
-SELECT 
-    'App Mobile',
-    'Aplicativo mobile para clientes',
-    w.id,
-    'active',
-    '#10b981',
-    45,
-    NOW() + INTERVAL '60 days',
-    u.id
-FROM workspaces w, users u 
-WHERE w.name = 'Workspace Principal' AND u.email = 'maria@example.com'
-UNION ALL
-SELECT 
-    'Website Institucional',
-    'Novo website da empresa',
-    w.id,
-    'completed',
-    '#f59e0b',
-    100,
-    NOW() - INTERVAL '10 days',
-    u.id
-FROM workspaces w, users u 
-WHERE w.name = 'Workspace Principal' AND u.email = 'pedro@example.com'
-ON CONFLICT DO NOTHING;
+-- Insert sample projects
+INSERT INTO projects (id, name, description, workspace_id, status, color, progress, created_by) VALUES
+('770e8400-e29b-41d4-a716-446655440001', 'Sistema de Gestão', 'Desenvolvimento do sistema principal', '660e8400-e29b-41d4-a716-446655440001', 'active', '#3B82F6', 75, '550e8400-e29b-41d4-a716-446655440001'),
+('770e8400-e29b-41d4-a716-446655440002', 'App Mobile', 'Aplicativo mobile da empresa', '660e8400-e29b-41d4-a716-446655440001', 'active', '#10B981', 45, '550e8400-e29b-41d4-a716-446655440002'),
+('770e8400-e29b-41d4-a716-446655440003', 'Website Institucional', 'Novo site da empresa', '660e8400-e29b-41d4-a716-446655440001', 'completed', '#8B5CF6', 100, '550e8400-e29b-41d4-a716-446655440001'),
+('770e8400-e29b-41d4-a716-446655440004', 'Dashboard Analytics', 'Dashboard de análise de dados', '660e8400-e29b-41d4-a716-446655440002', 'active', '#F59E0B', 30, '550e8400-e29b-41d4-a716-446655440002')
+ON CONFLICT (id) DO NOTHING;
 
--- Inserir tarefas de exemplo
-INSERT INTO tasks (title, description, project_id, assignee_id, created_by, status, priority, due_date, completed)
-SELECT 
-    'Implementar autenticação',
-    'Desenvolver sistema de login e registro',
-    p.id,
-    u1.id,
-    u2.id,
-    'in-progress',
-    'high',
-    NOW() + INTERVAL '7 days',
-    false
-FROM projects p, users u1, users u2
-WHERE p.name = 'Sistema de Vendas' AND u1.email = 'maria@example.com' AND u2.email = 'joao@example.com'
-UNION ALL
-SELECT 
-    'Design da interface',
-    'Criar mockups das telas principais',
-    p.id,
-    u1.id,
-    u2.id,
-    'completed',
-    'normal',
-    NOW() + INTERVAL '3 days',
-    true
-FROM projects p, users u1, users u2
-WHERE p.name = 'Sistema de Vendas' AND u1.email = 'ana@example.com' AND u2.email = 'joao@example.com'
-UNION ALL
-SELECT 
-    'Configurar banco de dados',
-    'Estruturar tabelas e relacionamentos',
-    p.id,
-    u1.id,
-    u2.id,
-    'todo',
-    'high',
-    NOW() + INTERVAL '14 days',
-    false
-FROM projects p, users u1, users u2
-WHERE p.name = 'Sistema de Vendas' AND u1.email = 'pedro@example.com' AND u2.email = 'joao@example.com'
-UNION ALL
-SELECT 
-    'Desenvolver tela de login',
-    'Implementar interface de autenticação no app',
-    p.id,
-    u1.id,
-    u2.id,
-    'in-progress',
-    'normal',
-    NOW() + INTERVAL '5 days',
-    false
-FROM projects p, users u1, users u2
-WHERE p.name = 'App Mobile' AND u1.email = 'carlos@example.com' AND u2.email = 'maria@example.com'
-UNION ALL
-SELECT 
-    'Integração com API',
-    'Conectar app com backend',
-    p.id,
-    u1.id,
-    u2.id,
-    'todo',
-    'high',
-    NOW() + INTERVAL '21 days',
-    false
-FROM projects p, users u1, users u2
-WHERE p.name = 'App Mobile' AND u1.email = 'ana@example.com' AND u2.email = 'maria@example.com'
-ON CONFLICT DO NOTHING;
+-- Insert sample tasks
+INSERT INTO tasks (id, title, description, project_id, assignee_id, created_by, status, priority, completed) VALUES
+('880e8400-e29b-41d4-a716-446655440001', 'Implementar autenticação', 'Desenvolver sistema de login e registro', '770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', 'in_progress', 'high', false),
+('880e8400-e29b-41d4-a716-446655440002', 'Design da interface', 'Criar mockups das telas principais', '770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440001', 'completed', 'medium', true),
+('880e8400-e29b-41d4-a716-446655440003', 'Configurar banco de dados', 'Setup inicial do PostgreSQL', '770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440001', 'completed', 'high', true),
+('880e8400-e29b-41d4-a716-446655440004', 'Desenvolver API REST', 'Criar endpoints da API', '770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440002', 'todo', 'medium', false),
+('880e8400-e29b-41d4-a716-446655440005', 'Testes unitários', 'Implementar testes automatizados', '770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440002', 'todo', 'low', false)
+ON CONFLICT (id) DO NOTHING;
 
--- Inserir membros do workspace
-INSERT INTO workspace_members (workspace_id, user_id, role)
-SELECT w.id, u.id, 
-    CASE 
-        WHEN u.email = 'joao@example.com' THEN 'admin'
-        WHEN u.email = 'maria@example.com' THEN 'manager'
-        ELSE 'member'
-    END
-FROM workspaces w, users u
-WHERE w.name = 'Workspace Principal'
+-- Insert workspace members
+INSERT INTO workspace_members (workspace_id, user_id, role) VALUES
+('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'admin'),
+('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002', 'manager'),
+('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', 'member'),
+('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440004', 'member'),
+('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', 'admin'),
+('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440005', 'member')
 ON CONFLICT (workspace_id, user_id) DO NOTHING;
 
--- Inserir membros dos projetos
-INSERT INTO project_members (project_id, user_id, role)
-SELECT p.id, u.id, 'member'
-FROM projects p, users u
-WHERE p.name IN ('Sistema de Vendas', 'App Mobile', 'Website Institucional')
+-- Insert project members
+INSERT INTO project_members (project_id, user_id, role) VALUES
+('770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'admin'),
+('770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440003', 'developer'),
+('770e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440004', 'designer'),
+('770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440002', 'admin'),
+('770e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440003', 'developer'),
+('770e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', 'admin'),
+('770e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440002', 'admin')
 ON CONFLICT (project_id, user_id) DO NOTHING;
