@@ -8,8 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DigitalzLogo } from "@/components/ui/digitalz-logo"
 import { CheckCircle, Users, Zap, Shield } from "lucide-react"
 
-export default function Home() {
-  // Home simples → redireciona para /login
+export default function HomePage() {
   redirect("/login")
 
   const features = [

@@ -1,40 +1,41 @@
 "use server"
 
+import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
-import { cookies } from "next/headers"
-import { dbOperations } from "@/lib/supabase"
 
-export async function loginAction(formData: FormData) {
-  const email = (formData.get("email") as string)?.trim().toLowerCase()
-  const password = (formData.get("password") as string) ?? ""
+export async function signIn(formData: FormData) {
+  const email = formData.get("email") as string
+  const password = formData.get("password") as string
 
   if (!email || !password) {
-    redirect("/login?error=Preencha%20todos%20os%20campos")
+    return { error: "Email e senha são obrigatórios" }
   }
 
-  // Consulta direta à tabela users (sem Supabase Auth Helpers)
-  const user = await dbOperations.getUserByEmail(email)
+  try {
+    const supabase = createClient()
 
-  if (!user || user.password !== password) {
-    redirect("/login?error=Credenciais%20inv%C3%A1lidas")
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      console.error("Erro no login:", error)
+      return { error: "Credenciais inválidas. Verifique seu email e senha." }
+    }
+
+    revalidatePath("/", "layout")
+    redirect("/dashboard")
+  } catch (error) {
+    console.error("Erro interno no login:", error)
+    return { error: "Erro interno do servidor. Tente novamente." }
   }
-
-  // Salvamos algo simples em cookie: id, name, email (exemplo rápido)
-  const cookieStore = cookies()
-  cookieStore.set("user_session", JSON.stringify({ id: user.id, name: user.name, email: user.email }), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 dias
-  })
-
-  revalidatePath("/dashboard") // apenas exemplo
-  redirect("/dashboard")
 }
 
 export async function signOut() {
-  const cookieStore = cookies()
-  cookieStore.delete("user_session")
+  const supabase = createClient()
+  await supabase.auth.signOut()
+  revalidatePath("/", "layout")
   redirect("/login")
 }

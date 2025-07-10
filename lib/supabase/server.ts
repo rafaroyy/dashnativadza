@@ -4,12 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 
 export const dynamic = "force-dynamic"
 
-/**
- * Cria um SupabaseClient apenas no lado do servidor.
- * Mantém a sessão via cookies utilizando a API do Next.js 15.
- */
 export function createClient(): SupabaseClient {
-  const cookieStore = cookies() // sem await!
+  const cookieStore = cookies()
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -21,22 +17,24 @@ export function createClient(): SupabaseClient {
         return cookieStore.getAll()
       },
       setAll(cookiesToSet) {
-        // Tentamos gravar; se estivermos num Server Component, ignoramos.
         try {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
         } catch {
-          /* ignore */
+          // ignore
         }
       },
     },
   })
 }
 
-/**
- * Helper para obter o usuário autenticado (ou null).
- */
 export async function getUser() {
   const supabase = createClient()
   const { data } = await supabase.auth.getUser()
   return data.user ?? null
+}
+
+export async function getSession() {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getSession()
+  return data.session ?? null
 }

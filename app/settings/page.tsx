@@ -1,19 +1,21 @@
 "use client"
 
-import type React from "react"
+import { useEffect } from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+
+import type React from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
-import { User, Bell, Shield, Palette, Save, Upload, Trash2 } from "lucide-react"
+import { User, Bell, Shield, Palette, Save } from "lucide-react"
 import { dbOperations } from "@/lib/supabase"
+
+export const dynamic = "force-dynamic"
 
 export default function SettingsPage() {
   const [user, setUser] = useState({
@@ -190,10 +192,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 ml-64">
+    <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-primary">Configurações</h1>
-        <p className="text-muted-foreground">Gerencie suas preferências e configurações da conta</p>
+        <h1 className="text-3xl font-bold text-gray-900">Configurações</h1>
+        <p className="text-gray-600">Gerencie suas preferências e configurações da conta</p>
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>}
@@ -209,13 +211,13 @@ export default function SettingsPage() {
             <Bell className="h-4 w-4" />
             Notificações
           </TabsTrigger>
-          <TabsTrigger value="privacy" className="flex items-center gap-2">
+          <TabsTrigger value="security" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            Privacidade
+            Segurança
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center gap-2">
+          <TabsTrigger value="billing" className="flex items-center gap-2">
             <Palette className="h-4 w-4" />
-            Aparência
+            Cobrança
           </TabsTrigger>
         </TabsList>
 
@@ -225,100 +227,55 @@ export default function SettingsPage() {
               <CardTitle>Informações do Perfil</CardTitle>
               <CardDescription>Atualize suas informações pessoais</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={user.profile_image_url || "/placeholder.svg"} alt={user.name} />
-                  <AvatarFallback className="text-lg">
-                    {user.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <div>
-                    <Label htmlFor="avatar-upload" className="cursor-pointer">
-                      <Button variant="outline" size="sm" disabled={saving}>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Alterar Avatar
-                      </Button>
-                    </Label>
-                    <Input
-                      id="avatar-upload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarUpload}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">JPG, PNG ou GIF. Máximo 5MB.</p>
+                  <Label htmlFor="firstName">Nome</Label>
+                  <Input
+                    id="firstName"
+                    value={user.name.split(" ")[0]}
+                    onChange={(e) =>
+                      setUser((prev) => ({
+                        ...prev,
+                        name: `${e.target.value} ${user.name.split(" ")[1] || ""}`,
+                      }))
+                    }
+                    placeholder="Seu nome"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Sobrenome</Label>
+                  <Input
+                    id="lastName"
+                    value={user.name.split(" ")[1] || ""}
+                    onChange={(e) =>
+                      setUser((prev) => ({
+                        ...prev,
+                        name: `${user.name.split(" ")[0]} ${e.target.value}`,
+                      }))
+                    }
+                    placeholder="Seu sobrenome"
+                  />
                 </div>
               </div>
-
-              <form onSubmit={handleProfileUpdate} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome Completo</Label>
-                    <Input
-                      id="name"
-                      value={user.name}
-                      onChange={(e) => setUser((prev) => ({ ...prev, name: e.target.value }))}
-                      placeholder="Seu nome completo"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" value={user.email} disabled className="bg-muted" />
-                    <p className="text-xs text-muted-foreground">O email não pode ser alterado</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone</Label>
-                    <Input
-                      id="phone"
-                      value={user.phone}
-                      onChange={(e) => setUser((prev) => ({ ...prev, phone: e.target.value }))}
-                      placeholder="(11) 99999-9999"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Cargo</Label>
-                    <Input
-                      id="role"
-                      value={user.role}
-                      onChange={(e) => setUser((prev) => ({ ...prev, role: e.target.value }))}
-                      placeholder="Seu cargo"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="location">Localização</Label>
-                  <Input
-                    id="location"
-                    value={user.location}
-                    onChange={(e) => setUser((prev) => ({ ...prev, location: e.target.value }))}
-                    placeholder="Cidade, Estado"
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="online-status"
-                    checked={user.online_status}
-                    onCheckedChange={(checked) => setUser((prev) => ({ ...prev, online_status: checked }))}
-                  />
-                  <Label htmlFor="online-status">Aparecer como online</Label>
-                </div>
-
-                <Button type="submit" disabled={saving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {saving ? "Salvando..." : "Salvar Alterações"}
-                </Button>
-              </form>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" value={user.email} disabled className="bg-muted" />
+                <p className="text-xs text-muted-foreground">O email não pode ser alterado</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bio">Bio</Label>
+                <Input
+                  id="bio"
+                  value={user.bio || ""}
+                  onChange={(e) => setUser((prev) => ({ ...prev, bio: e.target.value }))}
+                  placeholder="Conte um pouco sobre você"
+                />
+              </div>
+              <Button type="submit" disabled={saving}>
+                <Save className="h-4 w-4 mr-2" />
+                {saving ? "Salvando..." : "Salvar Alterações"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -330,236 +287,100 @@ export default function SettingsPage() {
               <CardDescription>Configure como você deseja receber notificações</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-3">Canais de Notificação</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="email-notifications">Notificações por Email</Label>
-                        <p className="text-sm text-muted-foreground">Receba notificações no seu email</p>
-                      </div>
-                      <Switch
-                        id="email-notifications"
-                        checked={settings.notifications.email}
-                        onCheckedChange={(checked) => handleNotificationChange("email", checked)}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="push-notifications">Notificações Push</Label>
-                        <p className="text-sm text-muted-foreground">Receba notificações no navegador</p>
-                      </div>
-                      <Switch
-                        id="push-notifications"
-                        checked={settings.notifications.push}
-                        onCheckedChange={(checked) => handleNotificationChange("push", checked)}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="desktop-notifications">Notificações Desktop</Label>
-                        <p className="text-sm text-muted-foreground">Receba notificações na área de trabalho</p>
-                      </div>
-                      <Switch
-                        id="desktop-notifications"
-                        checked={settings.notifications.desktop}
-                        onCheckedChange={(checked) => handleNotificationChange("desktop", checked)}
-                      />
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Notificações por Email</Label>
+                  <p className="text-sm text-muted-foreground">Receba notificações importantes por email</p>
                 </div>
-
-                <Separator />
-
-                <div>
-                  <h4 className="font-medium mb-3">Tipos de Notificação</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="task-updates">Atualizações de Tarefas</Label>
-                        <p className="text-sm text-muted-foreground">Quando tarefas são criadas ou atualizadas</p>
-                      </div>
-                      <Switch
-                        id="task-updates"
-                        checked={settings.notifications.taskUpdates}
-                        onCheckedChange={(checked) => handleNotificationChange("taskUpdates", checked)}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="project-updates">Atualizações de Projetos</Label>
-                        <p className="text-sm text-muted-foreground">Quando projetos são modificados</p>
-                      </div>
-                      <Switch
-                        id="project-updates"
-                        checked={settings.notifications.projectUpdates}
-                        onCheckedChange={(checked) => handleNotificationChange("projectUpdates", checked)}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label htmlFor="team-messages">Mensagens da Equipe</Label>
-                        <p className="text-sm text-muted-foreground">Quando você recebe mensagens</p>
-                      </div>
-                      <Switch
-                        id="team-messages"
-                        checked={settings.notifications.teamMessages}
-                        onCheckedChange={(checked) => handleNotificationChange("teamMessages", checked)}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <Switch
+                  checked={settings.notifications.email}
+                  onCheckedChange={(checked) => handleNotificationChange("email", checked)}
+                />
               </div>
-
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Notificações Push</Label>
+                  <p className="text-sm text-muted-foreground">Receba notificações no navegador</p>
+                </div>
+                <Switch
+                  checked={settings.notifications.push}
+                  onCheckedChange={(checked) => handleNotificationChange("push", checked)}
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Atualizações de Tarefas</Label>
+                  <p className="text-sm text-muted-foreground">Seja notificado sobre mudanças nas tarefas</p>
+                </div>
+                <Switch
+                  checked={settings.notifications.taskUpdates}
+                  onCheckedChange={(checked) => handleNotificationChange("taskUpdates", checked)}
+                />
+              </div>
               <Button onClick={saveSettings} disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? "Salvando..." : "Salvar Configurações"}
+                {saving ? "Salvando..." : "Salvar Preferências"}
               </Button>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="privacy" className="space-y-6">
+        <TabsContent value="security" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Privacidade</CardTitle>
-              <CardDescription>Controle quem pode ver suas informações</CardDescription>
+              <CardTitle>Segurança da Conta</CardTitle>
+              <CardDescription>Gerencie a segurança da sua conta</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="profile-visible">Perfil Visível</Label>
-                    <p className="text-sm text-muted-foreground">Permitir que outros vejam seu perfil</p>
-                  </div>
-                  <Switch
-                    id="profile-visible"
-                    checked={settings.privacy.profileVisible}
-                    onCheckedChange={(checked) => handlePrivacyChange("profileVisible", checked)}
-                  />
-                </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Senha Atual</Label>
+                <Input id="currentPassword" type="password" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Nova Senha</Label>
+                <Input id="newPassword" type="password" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                <Input id="confirmPassword" type="password" />
+              </div>
+              <Button>Alterar Senha</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
+        <TabsContent value="billing" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações de Cobrança</CardTitle>
+              <CardDescription>Gerencie seu plano e método de pagamento</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="status-visible">Status Online Visível</Label>
-                    <p className="text-sm text-muted-foreground">Mostrar quando você está online</p>
+                    <h3 className="font-medium">Plano Pro</h3>
+                    <p className="text-sm text-muted-foreground">R$ 29,90/mês</p>
                   </div>
-                  <Switch
-                    id="status-visible"
-                    checked={settings.privacy.statusVisible}
-                    onCheckedChange={(checked) => handlePrivacyChange("statusVisible", checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="activity-visible">Atividade Visível</Label>
-                    <p className="text-sm text-muted-foreground">Permitir que outros vejam sua atividade</p>
-                  </div>
-                  <Switch
-                    id="activity-visible"
-                    checked={settings.privacy.activityVisible}
-                    onCheckedChange={(checked) => handlePrivacyChange("activityVisible", checked)}
-                  />
+                  <Button variant="outline">Alterar Plano</Button>
                 </div>
               </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Zona de Perigo</h4>
-                <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+              <div className="space-y-2">
+                <Label>Método de Pagamento</Label>
+                <div className="rounded-lg border p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h5 className="font-medium text-red-800">Excluir Conta</h5>
-                      <p className="text-sm text-red-600">Esta ação não pode ser desfeita</p>
+                      <p className="font-medium">•••• •••• •••• 1234</p>
+                      <p className="text-sm text-muted-foreground">Expira em 12/2025</p>
                     </div>
-                    <Button variant="destructive" size="sm">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Excluir Conta
+                    <Button variant="outline" size="sm">
+                      Editar
                     </Button>
                   </div>
                 </div>
               </div>
-
-              <Button onClick={saveSettings} disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? "Salvando..." : "Salvar Configurações"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="appearance" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações de Aparência</CardTitle>
-              <CardDescription>Personalize a aparência da aplicação</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="theme">Tema</Label>
-                  <Select
-                    value={settings.appearance.theme}
-                    onValueChange={(value) => handleAppearanceChange("theme", value)}
-                  >
-                    <SelectTrigger id="theme">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">Claro</SelectItem>
-                      <SelectItem value="dark">Escuro</SelectItem>
-                      <SelectItem value="system">Sistema</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="language">Idioma</Label>
-                  <Select
-                    value={settings.appearance.language}
-                    onValueChange={(value) => handleAppearanceChange("language", value)}
-                  >
-                    <SelectTrigger id="language">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
-                      <SelectItem value="en-US">English (US)</SelectItem>
-                      <SelectItem value="es-ES">Español</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Fuso Horário</Label>
-                  <Select
-                    value={settings.appearance.timezone}
-                    onValueChange={(value) => handleAppearanceChange("timezone", value)}
-                  >
-                    <SelectTrigger id="timezone">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="America/Sao_Paulo">São Paulo (GMT-3)</SelectItem>
-                      <SelectItem value="America/New_York">New York (GMT-5)</SelectItem>
-                      <SelectItem value="Europe/London">London (GMT+0)</SelectItem>
-                      <SelectItem value="Asia/Tokyo">Tokyo (GMT+9)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Button onClick={saveSettings} disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? "Salvando..." : "Salvar Configurações"}
-              </Button>
             </CardContent>
           </Card>
         </TabsContent>

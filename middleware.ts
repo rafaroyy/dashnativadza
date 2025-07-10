@@ -55,29 +55,22 @@ export async function middleware(request: NextRequest) {
   )
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session },
+  } = await supabase.auth.getSession()
 
-  const userSession = request.cookies.get("user_session")
   const { pathname } = request.nextUrl
 
-  // Se está tentando acessar o dashboard sem estar logado
-  if (pathname.startsWith("/dashboard") && !userSession) {
+  // Rotas protegidas que precisam de autenticação
+  const protectedRoutes = ["/dashboard", "/tasks", "/projects", "/teams", "/settings"]
+  const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
+
+  // Se está tentando acessar rota protegida sem sessão
+  if (isProtectedRoute && !session) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
   // Se está logado e tentando acessar login, redireciona para dashboard
-  if (pathname === "/login" && userSession) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
-  }
-
-  // Redireciona para login se não autenticado e tentando acessar rota protegida
-  if (!user && pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/login", request.url))
-  }
-
-  // Redireciona para dashboard se autenticado e tentando acessar login
-  if (user && pathname === "/login") {
+  if (session && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
@@ -85,5 +78,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ["/dashboard/:path*", "/tasks/:path*", "/projects/:path*", "/teams/:path*", "/settings/:path*", "/login"],
 }
