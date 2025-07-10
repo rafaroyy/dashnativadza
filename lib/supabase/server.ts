@@ -1,39 +1,32 @@
-import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { createServerClient } from "@supabase/ssr"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
-export async function createClient() {
-  const cookieStore = await cookies()
+/**
+ * Cria uma instância do Supabase no lado do servidor
+ * preservando cookies para Auth.
+ */
+export function getSupabaseServerClient(): SupabaseClient {
+  const cookieStore = cookies()
 
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const url = process.env.SUPABASE_URL
+  const anonKey = process.env.SUPABASE_ANON_KEY
+
+  if (!url || !anonKey) {
+    throw new Error("⚠️  Variáveis SUPABASE_URL/ANON_KEY não definidas.")
+  }
+
+  return createServerClient(url, anonKey, {
     cookies: {
-      getAll() {
-        return cookieStore.getAll()
+      get(name) {
+        return cookieStore.get(name)?.value
       },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-        } catch {
-          // The `setAll` method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing
-          // user sessions.
-        }
+      set(name, value, options) {
+        cookieStore.set({ name, value, ...options })
+      },
+      remove(name, options) {
+        cookieStore.delete({ name, ...options })
       },
     },
   })
-}
-
-export async function getUser() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
-}
-
-export async function getSession() {
-  const supabase = await createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  return session
 }
