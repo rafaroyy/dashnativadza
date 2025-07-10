@@ -1,169 +1,119 @@
 "use client"
 
 import { useState } from "react"
-import { signInWithEmail, signUpWithEmail } from "@/app/auth/actions"
+import { signIn, signUp } from "@/app/auth/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState("")
 
-  async function handleSignIn(formData: FormData) {
+  const handleSignIn = async (formData: FormData) => {
     setIsLoading(true)
-    setError(null)
+    setError("")
 
-    try {
-      const result = await signInWithEmail(formData)
-      if (result?.error) {
-        setError(result.error)
-      }
-    } catch (error) {
-      console.error("Login error:", error)
-      setError("Erro inesperado. Tente novamente.")
-    } finally {
-      setIsLoading(false)
+    const result = await signIn(formData)
+
+    if (result?.error) {
+      setError(result.error)
     }
+
+    setIsLoading(false)
   }
 
-  async function handleSignUp(formData: FormData) {
+  const handleSignUp = async (formData: FormData) => {
     setIsLoading(true)
-    setError(null)
+    setError("")
 
-    try {
-      const result = await signUpWithEmail(formData)
-      if (result?.error) {
-        setError(result.error)
-      }
-    } catch (error) {
-      console.error("Signup error:", error)
-      setError("Erro inesperado. Tente novamente.")
-    } finally {
-      setIsLoading(false)
+    const result = await signUp(formData)
+
+    if (result?.error) {
+      setError(result.error)
     }
+
+    setIsLoading(false)
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">DigitalZ</CardTitle>
-          <CardDescription>Faça login ou crie sua conta</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Criar Conta</TabsTrigger>
-            </TabsList>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">ClickUp Clone</h2>
+          <p className="mt-2 text-sm text-gray-600">Gerencie seus projetos e tarefas</p>
+        </div>
 
-            <TabsContent value="login">
-              <form action={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="Sua senha"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
+        <Tabs defaultValue="login" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="login">Login</TabsTrigger>
+            <TabsTrigger value="register">Cadastro</TabsTrigger>
+          </TabsList>
 
-                {error && (
-                  <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">{error}</div>
-                )}
+          <TabsContent value="login">
+            <Card>
+              <CardHeader>
+                <CardTitle>Fazer Login</CardTitle>
+                <CardDescription>Entre com suas credenciais para acessar sua conta</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form action={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" name="email" type="email" required placeholder="seu@email.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Senha</Label>
+                    <Input id="password" name="password" type="password" required placeholder="••••••••" />
+                  </div>
+                  {error && <div className="text-red-600 text-sm">{error}</div>}
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Entrando..." : "Entrar"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Entrando...
-                    </>
-                  ) : (
-                    "Entrar"
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup">
-              <form action={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Nome</Label>
-                  <Input
-                    id="signup-name"
-                    name="name"
-                    type="text"
-                    placeholder="Seu nome completo"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    name="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Senha</Label>
-                  <Input
-                    id="signup-password"
-                    name="password"
-                    type="password"
-                    placeholder="Crie uma senha"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-
-                {error && (
-                  <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">{error}</div>
-                )}
-
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Criando conta...
-                    </>
-                  ) : (
-                    "Criar Conta"
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-
-          <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Usuários de teste:</p>
-            <p>joao@example.com / senha: 123</p>
-            <p>maria@example.com / senha: 123</p>
-          </div>
-        </CardContent>
-      </Card>
+          <TabsContent value="register">
+            <Card>
+              <CardHeader>
+                <CardTitle>Criar Conta</CardTitle>
+                <CardDescription>Crie uma nova conta para começar a usar</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form action={handleSignUp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome</Label>
+                    <Input id="name" name="name" type="text" required placeholder="Seu nome completo" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" name="email" type="email" required placeholder="seu@email.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Senha</Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      minLength={6}
+                    />
+                  </div>
+                  {error && <div className="text-red-600 text-sm">{error}</div>}
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Criando conta..." : "Criar conta"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   )
 }

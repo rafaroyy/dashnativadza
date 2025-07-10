@@ -1,4 +1,4 @@
-import { createClient } from "./server"
+import { createClient as createServerClient } from "./server"
 
 export interface User {
   id: string
@@ -25,7 +25,7 @@ export const dbOperations = {
   async getUserByEmail(email: string): Promise<User | null> {
     try {
       console.log("Searching for user with email:", email)
-      const supabase = await createClient()
+      const supabase = await createServerClient()
       const { data, error } = await supabase.from("users").select("*").eq("email", email).maybeSingle()
 
       if (error) {
@@ -44,7 +44,7 @@ export const dbOperations = {
   async getUserByEmailAndPassword(email: string, password: string): Promise<User | null> {
     try {
       console.log("Authenticating user:", email)
-      const supabase = await createClient()
+      const supabase = await createServerClient()
       const { data, error } = await supabase
         .from("users")
         .select("*")
@@ -68,7 +68,7 @@ export const dbOperations = {
   async createUser(userData: CreateUserArgs): Promise<User | null> {
     try {
       console.log("Creating user:", userData.email)
-      const supabase = await createClient()
+      const supabase = await createServerClient()
 
       const newUser = {
         name: userData.name,
@@ -98,7 +98,7 @@ export const dbOperations = {
   async getUserById(id: string): Promise<User | null> {
     try {
       console.log("Fetching user by ID:", id)
-      const supabase = await createClient()
+      const supabase = await createServerClient()
       const { data, error } = await supabase.from("users").select("*").eq("id", id).maybeSingle()
 
       if (error) {
