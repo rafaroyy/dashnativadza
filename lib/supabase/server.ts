@@ -27,14 +27,50 @@ export function createClient(): SupabaseClient {
   })
 }
 
-export async function getUser() {
-  const supabase = createClient()
-  const { data } = await supabase.auth.getUser()
-  return data.user ?? null
+export async function getUserFromSession() {
+  const cookieStore = cookies()
+  const userSession = cookieStore.get("user_session")
+
+  if (!userSession) return null
+
+  try {
+    return JSON.parse(userSession.value)
+  } catch {
+    return null
+  }
 }
 
-export async function getSession() {
-  const supabase = createClient()
-  const { data } = await supabase.auth.getSession()
-  return data.session ?? null
+/**
+ * Compat helper – returns the authenticated user (or null).
+ * Required by other parts of the codebase.
+ */
+export async function getUser() {
+  return getUserFromSession()
+}
+
+// Operações de banco de dados
+export const dbOperations = {
+  async getUserByEmail(email: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase.from("users").select("*").eq("email", email).single()
+
+    if (error) {
+      console.error("Erro ao buscar usuário por email:", error)
+      return null
+    }
+
+    return data
+  },
+
+  async getUserById(id: string) {
+    const supabase = createClient()
+    const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
+
+    if (error) {
+      console.error("Erro ao buscar usuário:", error)
+      return null
+    }
+
+    return data
+  },
 }

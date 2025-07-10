@@ -3,19 +3,19 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, CheckSquare, FolderOpen, Users, Settings, LogOut } from "lucide-react"
-import { signOut } from "@/app/auth/actions"
+import { Home, CheckSquare, FolderOpen, Users, Settings, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { signOut } from "@/app/auth/actions"
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Tarefas", href: "/tasks", icon: CheckSquare },
   { name: "Projetos", href: "/projects", icon: FolderOpen },
   { name: "Equipe", href: "/teams", icon: Users },
   { name: "Configurações", href: "/settings", icon: Settings },
 ]
 
-export function Sidebar() {
+export default function Sidebar() {
   const pathname = usePathname()
 
   return (
@@ -63,5 +63,3 @@ export function Sidebar() {
     </div>
   )
 }
-
-export default Sidebar

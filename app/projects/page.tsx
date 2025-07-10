@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Plus, Calendar, Users } from "lucide-react"
 
@@ -12,28 +12,49 @@ export default function ProjectsPage() {
       id: 1,
       name: "Website Redesign",
       description: "Redesign completo do website corporativo",
-      status: "Em progresso",
+      status: "Em andamento",
       progress: 75,
-      members: 4,
-      dueDate: "2024-02-15",
+      startDate: "2024-01-01",
+      endDate: "2024-02-15",
+      team: ["João Silva", "Maria Santos", "Pedro Costa"],
+      tasksCompleted: 15,
+      totalTasks: 20,
     },
     {
       id: 2,
-      name: "Mobile App",
+      name: "App Mobile",
       description: "Desenvolvimento do aplicativo mobile",
-      status: "Em progresso",
+      status: "Em andamento",
       progress: 45,
-      members: 3,
-      dueDate: "2024-03-01",
+      startDate: "2023-12-15",
+      endDate: "2024-03-01",
+      team: ["Ana Oliveira", "Carlos Lima"],
+      tasksCompleted: 9,
+      totalTasks: 20,
     },
     {
       id: 3,
-      name: "API Integration",
-      description: "Integração com APIs de terceiros",
-      status: "Concluído",
-      progress: 100,
-      members: 2,
-      dueDate: "2024-01-10",
+      name: "Sistema CRM",
+      description: "Implementação do sistema de CRM",
+      status: "Quase concluído",
+      progress: 90,
+      startDate: "2023-11-01",
+      endDate: "2024-01-30",
+      team: ["Maria Santos", "Pedro Costa", "Ana Oliveira"],
+      tasksCompleted: 18,
+      totalTasks: 20,
+    },
+    {
+      id: 4,
+      name: "Dashboard Analytics",
+      description: "Painel de analytics e relatórios",
+      status: "Planejamento",
+      progress: 10,
+      startDate: "2024-02-01",
+      endDate: "2024-04-15",
+      team: ["João Silva"],
+      tasksCompleted: 2,
+      totalTasks: 25,
     },
   ]
 
@@ -41,9 +62,11 @@ export default function ProjectsPage() {
     switch (status) {
       case "Concluído":
         return "bg-green-100 text-green-800"
-      case "Em progresso":
+      case "Em andamento":
         return "bg-blue-100 text-blue-800"
-      case "Pausado":
+      case "Quase concluído":
+        return "bg-purple-100 text-purple-800"
+      case "Planejamento":
         return "bg-yellow-100 text-yellow-800"
       default:
         return "bg-gray-100 text-gray-800"
@@ -51,66 +74,33 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Projetos</h1>
-          <p className="text-gray-600">Gerencie todos os seus projetos</p>
+          <p className="text-gray-600">Acompanhe o progresso dos seus projetos</p>
         </div>
         <Button>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           Novo Projeto
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total de Projetos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{projects.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Em Progresso</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {projects.filter((project) => project.status === "Em progresso").length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {projects.filter((project) => project.status === "Concluído").length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid gap-6 md:grid-cols-2">
         {projects.map((project) => (
-          <Card key={project.id}>
+          <Card key={project.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{project.name}</CardTitle>
-                  <CardDescription className="mt-1">{project.description}</CardDescription>
+                <div className="space-y-1">
+                  <CardTitle className="text-xl">{project.name}</CardTitle>
+                  <CardDescription>{project.description}</CardDescription>
                 </div>
                 <Badge className={getStatusColor(project.status)}>{project.status}</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <div className="flex justify-between text-sm mb-2">
+                <div className="flex items-center justify-between text-sm mb-2">
                   <span>Progresso</span>
                   <span>{project.progress}%</span>
                 </div>
@@ -119,18 +109,36 @@ export default function ProjectsPage() {
 
               <div className="flex items-center justify-between text-sm text-gray-600">
                 <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-1" />
-                  {project.members} membros
-                </div>
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  {new Date(project.dueDate).toLocaleDateString("pt-BR")}
+                  <Calendar className="mr-1 h-4 w-4" />
+                  <span>
+                    {new Date(project.startDate).toLocaleDateString("pt-BR")} -{" "}
+                    {new Date(project.endDate).toLocaleDateString("pt-BR")}
+                  </span>
                 </div>
               </div>
 
-              <Button variant="outline" className="w-full bg-transparent">
-                Ver Projeto
-              </Button>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center text-gray-600">
+                  <Users className="mr-1 h-4 w-4" />
+                  <span>{project.team.length} membros</span>
+                </div>
+                <span className="text-gray-600">
+                  {project.tasksCompleted}/{project.totalTasks} tarefas
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-1">
+                {project.team.slice(0, 3).map((member, index) => (
+                  <Badge key={index} variant="outline" className="text-xs">
+                    {member}
+                  </Badge>
+                ))}
+                {project.team.length > 3 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{project.team.length - 3}
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}

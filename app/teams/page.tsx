@@ -1,8 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Plus, Mail, Phone } from "lucide-react"
+import { Plus, Mail, MessageCircle } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -13,140 +13,148 @@ export default function TeamsPage() {
       name: "João Silva",
       email: "joao@example.com",
       role: "Desenvolvedor Frontend",
-      status: "Online",
+      status: "online",
       avatar: "/placeholder.svg?height=40&width=40",
+      tasksCompleted: 24,
+      currentProject: "Website Redesign",
     },
     {
       id: 2,
       name: "Maria Santos",
       email: "maria@example.com",
-      role: "Designer UX/UI",
-      status: "Online",
+      role: "Desenvolvedora Backend",
+      status: "online",
       avatar: "/placeholder.svg?height=40&width=40",
+      tasksCompleted: 18,
+      currentProject: "Sistema CRM",
     },
     {
       id: 3,
       name: "Pedro Costa",
       email: "pedro@example.com",
-      role: "Desenvolvedor Backend",
-      status: "Offline",
+      role: "UI/UX Designer",
+      status: "offline",
       avatar: "/placeholder.svg?height=40&width=40",
+      tasksCompleted: 12,
+      currentProject: "App Mobile",
     },
     {
       id: 4,
       name: "Ana Oliveira",
       email: "ana@example.com",
       role: "Product Manager",
-      status: "Online",
+      status: "online",
       avatar: "/placeholder.svg?height=40&width=40",
+      tasksCompleted: 31,
+      currentProject: "Dashboard Analytics",
+    },
+    {
+      id: 5,
+      name: "Carlos Lima",
+      email: "carlos@example.com",
+      role: "DevOps Engineer",
+      status: "away",
+      avatar: "/placeholder.svg?height=40&width=40",
+      tasksCompleted: 15,
+      currentProject: "App Mobile",
+    },
+    {
+      id: 6,
+      name: "Lucia Ferreira",
+      email: "lucia@example.com",
+      role: "QA Tester",
+      status: "online",
+      avatar: "/placeholder.svg?height=40&width=40",
+      tasksCompleted: 22,
+      currentProject: "Website Redesign",
     },
   ]
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Online":
-        return "bg-green-100 text-green-800"
-      case "Offline":
-        return "bg-gray-100 text-gray-800"
-      case "Ausente":
-        return "bg-yellow-100 text-yellow-800"
+      case "online":
+        return "bg-green-500"
+      case "away":
+        return "bg-yellow-500"
+      case "offline":
+        return "bg-gray-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-400"
+    }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "online":
+        return "Online"
+      case "away":
+        return "Ausente"
+      case "offline":
+        return "Offline"
+      default:
+        return "Desconhecido"
     }
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Equipe</h1>
           <p className="text-gray-600">Gerencie os membros da sua equipe</p>
         </div>
         <Button>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           Adicionar Membro
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total de Membros</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teamMembers.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Online</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {teamMembers.filter((member) => member.status === "Online").length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Tarefas Concluídas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">47</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {teamMembers.map((member) => (
-          <Card key={member.id}>
+          <Card key={member.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center space-x-4">
-                <Avatar>
-                  <AvatarImage src={member.avatar || "/placeholder.svg"} alt={member.name} />
-                  <AvatarFallback>
-                    {member.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{member.name}</CardTitle>
-                  <CardDescription>{member.role}</CardDescription>
+                <div className="relative">
+                  <Avatar>
+                    <AvatarImage src={member.avatar || "/placeholder.svg"} alt={member.name} />
+                    <AvatarFallback>
+                      {member.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div
+                    className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white ${getStatusColor(member.status)}`}
+                  />
                 </div>
-                <Badge className={getStatusColor(member.status)}>{member.status}</Badge>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg truncate">{member.name}</CardTitle>
+                  <CardDescription className="truncate">{member.role}</CardDescription>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center text-sm text-gray-600">
-                  <Mail className="h-4 w-4 mr-2" />
-                  {member.email}
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Phone className="h-4 w-4 mr-2" />
-                  +55 (11) 99999-9999
-                </div>
+              <div className="flex items-center justify-between">
+                <Badge variant={member.status === "online" ? "default" : "secondary"}>
+                  {getStatusText(member.status)}
+                </Badge>
+                <span className="text-sm text-gray-600">{member.tasksCompleted} tarefas</span>
               </div>
 
-              <div className="flex space-x-2">
-                <Button variant="outline" size="sm" className="flex-1 bg-transparent">
-                  Perfil
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Projeto atual:</p>
+                <p className="text-sm font-medium">{member.currentProject}</p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Button size="sm" variant="outline" className="flex-1 bg-transparent">
+                  <Mail className="mr-1 h-3 w-3" />
+                  Email
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 bg-transparent">
-                  Mensagem
+                <Button size="sm" variant="outline" className="flex-1 bg-transparent">
+                  <MessageCircle className="mr-1 h-3 w-3" />
+                  Chat
                 </Button>
               </div>
             </CardContent>

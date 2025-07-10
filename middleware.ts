@@ -1,82 +1,34 @@
-import { createServerClient } from "@supabase/ssr"
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: any) {
-          request.cookies.set({
-            name,
-            value: "",
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: "",
-            ...options,
-          })
-        },
-      },
-    },
-  )
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Rotas protegidas que precisam de autenticação
+  // Rotas que precisam de autenticação
   const protectedRoutes = ["/dashboard", "/tasks", "/projects", "/teams", "/settings"]
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
 
+  // Rotas públicas
+  const publicRoutes = ["/login", "/signup", "/"]
+  const isPublicRoute = publicRoutes.includes(pathname)
+
+  // Verificar se tem sessão de usuário
+  const userSession = request.cookies.get("user_session")
+  const hasValidSession = userSession && userSession.value
+
   // Se está tentando acessar rota protegida sem sessão
-  if (isProtectedRoute && !session) {
+  if (isProtectedRoute && !hasValidSession) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
   // Se está logado e tentando acessar login, redireciona para dashboard
-  if (session && pathname === "/login") {
+  if (hasValidSession && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/tasks/:path*", "/projects/:path*", "/teams/:path*", "/settings/:path*", "/login"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|public).*)"],
 }
