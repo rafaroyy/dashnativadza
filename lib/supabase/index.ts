@@ -1,4 +1,4 @@
-import { createClient as createServerClient } from "./server"
+import { createServerClient } from "./server"
 
 export interface User {
   id: string
