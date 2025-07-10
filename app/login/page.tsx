@@ -1,95 +1,173 @@
 "use client"
 
-import type React from "react"
+export const dynamic = "force-dynamic"
+
 import { useState } from "react"
+import { signInWithEmail, signUpWithEmail } from "@/app/auth/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { DigitalzLogo } from "@/components/ui/digitalz-logo"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
-import { signInWithEmail, signUpWithEmail } from "@/app/auth/actions"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
-  const [isLogin, setIsLogin] = useState(true)
-  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isPending, setIsPending] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsPending(true)
+  async function handleSignIn(formData: FormData) {
+    setIsLoading(true)
     setError(null)
 
-    const formData = new FormData(e.currentTarget)
-    const action = isLogin ? signInWithEmail : signUpWithEmail
-    const result = await action(formData)
-
-    if (result?.error) {
-      setError(result.error)
+    try {
+      const result = await signInWithEmail(formData)
+      if (result?.error) {
+        setError(result.error)
+      }
+    } catch (error) {
+      console.error("Login error:", error)
+      setError("Erro inesperado. Tente novamente.")
+    } finally {
+      setIsLoading(false)
     }
-    // A redireção em caso de sucesso é tratada pela Server Action
-    setIsPending(false)
+  }
+
+  async function handleSignUp(formData: FormData) {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const result = await signUpWithEmail(formData)
+      if (result?.error) {
+        setError(result.error)
+      }
+    } catch (error) {
+      console.error("Signup error:", error)
+      setError("Erro inesperado. Tente novamente.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <DigitalzLogo className="mx-auto mb-4" />
-          <CardTitle>{isLogin ? "Entrar" : "Criar Conta"}</CardTitle>
-          <CardDescription>
-            {isLogin ? "Entre na sua conta para continuar" : "Crie sua conta para começar"}
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold">DigitalZ</CardTitle>
+          <CardDescription>Faça login ou crie sua conta</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome</Label>
-                <Input id="name" name="name" type="text" placeholder="Seu nome completo" required={!isLogin} />
-              </div>
-            )}
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="signup">Criar Conta</TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" placeholder="seu@email.com" required />
-            </div>
+            <TabsContent value="login">
+              <form action={handleSignIn} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="Sua senha"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Sua senha"
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Entrando...
+                    </>
+                  ) : (
+                    "Entrar"
+                  )}
                 </Button>
-              </div>
-            </div>
+              </form>
+            </TabsContent>
 
-            {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+            <TabsContent value="signup">
+              <form action={handleSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">Nome</Label>
+                  <Input
+                    id="signup-name"
+                    name="name"
+                    type="text"
+                    placeholder="Seu nome completo"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input
+                    id="signup-email"
+                    name="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Senha</Label>
+                  <Input
+                    id="signup-password"
+                    name="password"
+                    type="password"
+                    placeholder="Crie uma senha"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
 
-            <Button type="submit" className="w-full gradient-bg" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLogin ? "Entrar" : "Criar Conta"}
-            </Button>
-          </form>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
 
-          <div className="mt-4 text-center">
-            <Button variant="link" onClick={() => setIsLogin(!isLogin)} className="text-sm">
-              {isLogin ? "Não tem conta? Criar uma agora" : "Já tem conta? Fazer login"}
-            </Button>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Criando conta...
+                    </>
+                  ) : (
+                    "Criar Conta"
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+
+          <div className="mt-6 text-center text-sm text-gray-600">
+            <p>Usuários de teste:</p>
+            <p>joao@example.com / senha: 123</p>
+            <p>maria@example.com / senha: 123</p>
           </div>
         </CardContent>
       </Card>

@@ -4,50 +4,63 @@ import { redirect } from "next/navigation"
 import { dbOperations } from "@/lib/supabase"
 
 export async function signInWithEmail(formData: FormData) {
-  const email = String(formData.get("email") ?? "")
-  const password = String(formData.get("password") ?? "")
-
-  console.log("Login attempt:", { email, password: password ? "***" : "empty" })
-
-  if (!email || !password) {
-    return { error: "Email e senha são obrigatórios" }
-  }
-
   try {
+    const email = String(formData.get("email") ?? "").trim()
+    const password = String(formData.get("password") ?? "").trim()
+
+    console.log("=== LOGIN ATTEMPT ===")
+    console.log("Email:", email)
+    console.log("Password provided:", password ? "yes" : "no")
+
+    if (!email || !password) {
+      console.log("Missing email or password")
+      return { error: "Email e senha são obrigatórios" }
+    }
+
     // Verificar credenciais na tabela users
     const user = await dbOperations.getUserByEmailAndPassword(email, password)
-    console.log("User found:", user ? "yes" : "no")
 
     if (!user) {
+      console.log("Invalid credentials")
       return { error: "Credenciais inválidas" }
     }
 
-    // Simular sessão (em produção, use Supabase Auth)
     console.log("Login successful for:", user.email)
     redirect("/dashboard")
   } catch (error) {
-    console.error("Login error:", error)
+    console.error("=== LOGIN ERROR ===", error)
     return { error: "Erro interno do servidor" }
   }
 }
 
 export async function signUpWithEmail(formData: FormData) {
-  const name = String(formData.get("name") ?? "")
-  const email = String(formData.get("email") ?? "")
-  const password = String(formData.get("password") ?? "")
-
-  console.log("Signup attempt:", { name, email, password: password ? "***" : "empty" })
-
-  if (!name || !email || !password) {
-    return { error: "Todos os campos são obrigatórios" }
-  }
-
   try {
+    const name = String(formData.get("name") ?? "").trim()
+    const email = String(formData.get("email") ?? "").trim()
+    const password = String(formData.get("password") ?? "").trim()
+
+    console.log("=== SIGNUP ATTEMPT ===")
+    console.log("Name:", name)
+    console.log("Email:", email)
+    console.log("Password provided:", password ? "yes" : "no")
+
+    if (!name || !email || !password) {
+      console.log("Missing required fields")
+      return { error: "Todos os campos são obrigatórios" }
+    }
+
+    // Validar formato do email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      console.log("Invalid email format")
+      return { error: "Formato de email inválido" }
+    }
+
     // Verificar se o email já existe
     const existingUser = await dbOperations.getUserByEmail(email)
-    console.log("Existing user check:", existingUser ? "found" : "not found")
 
     if (existingUser) {
+      console.log("Email already exists")
       return { error: "Este email já está em uso" }
     }
 
@@ -56,23 +69,28 @@ export async function signUpWithEmail(formData: FormData) {
       name,
       email,
       password,
-      profile_image_url: `https://api.dicebear.com/8.x/initials/svg?seed=${name}`,
+      profile_image_url: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(name)}`,
     })
 
-    console.log("User creation result:", newUser ? "success" : "failed")
-
     if (!newUser) {
-      return { error: "Erro ao criar usuário" }
+      console.log("Failed to create user")
+      return { error: "Erro ao criar usuário. Tente novamente." }
     }
 
     console.log("Signup successful for:", newUser.email)
     redirect("/dashboard")
   } catch (error) {
-    console.error("Signup error:", error)
+    console.error("=== SIGNUP ERROR ===", error)
     return { error: "Erro interno do servidor" }
   }
 }
 
 export async function signOut() {
-  redirect("/login")
+  try {
+    console.log("User signing out")
+    redirect("/login")
+  } catch (error) {
+    console.error("Signout error:", error)
+    redirect("/login")
+  }
 }
