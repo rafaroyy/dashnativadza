@@ -8,26 +8,23 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import * as z from "zod"
 
 export interface CreateTaskModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: Omit<TaskFormData, "id" | "created_at" | "updated_at">) => Promise<void> | void
+  onSubmit: (data: TaskFormData) => Promise<void> | void
   users: { id: string; name: string }[]
   projects: { id: string; name: string }[]
 }
 
-const TaskSchema = z.object({
-  title: z.string().min(3, "O título deve ter pelo menos 3 caracteres"),
-  description: z.string().optional(),
-  priority: z.enum(["high", "medium", "low"]),
-  status: z.enum(["todo", "in_progress", "done"]),
-  assignee_id: z.string().uuid().optional().nullable(),
-  project_id: z.string().uuid().optional().nullable(),
-})
-
-type TaskFormData = z.infer<typeof TaskSchema>
+interface TaskFormData {
+  title: string
+  description?: string
+  priority: "high" | "medium" | "low"
+  status: "todo" | "in_progress" | "done"
+  assignee_id?: string | null
+  project_id?: string | null
+}
 
 function CreateTaskModal(props: CreateTaskModalProps) {
   const { open, onOpenChange, onSubmit, users, projects } = props
@@ -45,19 +42,24 @@ function CreateTaskModal(props: CreateTaskModalProps) {
 
   const handleChange = (key: keyof TaskFormData, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }))
 
-  const handleSubmit = async () => {
-    const parse = TaskSchema.safeParse(form)
-    if (!parse.success) {
+  const validateForm = () => {
+    if (!form.title || form.title.trim().length < 3) {
       toast({
         title: "Erro no formulário",
-        description: parse.error.issues[0].message,
+        description: "O título deve ter pelo menos 3 caracteres",
         variant: "destructive",
       })
-      return
+      return false
     }
+    return true
+  }
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return
+
     try {
       setLoading(true)
-      await onSubmit(parse.data)
+      await onSubmit(form)
       onOpenChange(false)
       setForm({
         title: "",
@@ -67,7 +69,11 @@ function CreateTaskModal(props: CreateTaskModalProps) {
         assignee_id: null,
         project_id: null,
       })
-    } catch {
+      toast({
+        title: "Sucesso",
+        description: "Tarefa criada com sucesso!",
+      })
+    } catch (error) {
       toast({
         title: "Erro",
         description: "Não foi possível criar a tarefa",
@@ -93,6 +99,7 @@ function CreateTaskModal(props: CreateTaskModalProps) {
               value={form.title}
               onChange={(e) => handleChange("title", e.target.value)}
               placeholder="Título da tarefa"
+              required
             />
           </div>
 
@@ -178,17 +185,19 @@ function CreateTaskModal(props: CreateTaskModalProps) {
             </div>
           </div>
 
-          <Button onClick={handleSubmit} disabled={loading} className="w-full">
-            {loading ? "Salvando..." : "Criar Tarefa"}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit} disabled={loading} className="flex-1">
+              {loading ? "Salvando..." : "Criar Tarefa"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   )
 }
 
-/* -------------------------------------------------- *
- *  Exports                                           *
- * -------------------------------------------------- */
-export { CreateTaskModal } //  named
-export default CreateTaskModal //  default
+export { CreateTaskModal }
+export default CreateTaskModal

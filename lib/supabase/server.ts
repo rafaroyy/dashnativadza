@@ -1,26 +1,30 @@
-import { createServerClient } from "@supabase/ssr"
+import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { cookies } from "next/headers"
-import type { SupabaseClient } from "@supabase/supabase-js"
 
-export const dynamic = "force-dynamic"
+export async function createClient() {
+  const cookieStore = await cookies()
 
-export function createClient(): SupabaseClient {
-  const cookieStore = cookies()
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !anon) throw new Error("Variáveis NEXT_PUBLIC_SUPABASE_URL / ANON_KEY não definidas.")
-
-  return createServerClient(url, anon, {
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
     cookies: {
-      getAll() {
-        return cookieStore.getAll()
+      get(name: string) {
+        return cookieStore.get(name)?.value
       },
-      setAll(cookiesToSet) {
+      set(name: string, value: string, options: CookieOptions) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-        } catch {
-          // ignore
+          cookieStore.set({ name, value, ...options })
+        } catch (error) {
+          // The `set` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
+        }
+      },
+      remove(name: string, options: CookieOptions) {
+        try {
+          cookieStore.set({ name, value: "", ...options })
+        } catch (error) {
+          // The `delete` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
         }
       },
     },
@@ -28,24 +32,17 @@ export function createClient(): SupabaseClient {
 }
 
 export async function getUserFromSession() {
-  const cookieStore = cookies()
-  const userSession = cookieStore.get("user_session")
-
-  if (!userSession) return null
-
-  try {
-    return JSON.parse(userSession.value)
-  } catch {
-    return null
-  }
+  const supabase = await createClient()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  return session?.user || null
 }
 
 export async function getUser() {
-  return getUserFromSession()
-}
-
-export async function getSession() {
-  const cookieStore = cookies()
-  const userSession = cookieStore.get("user_session")
-  return userSession ? { user: await getUserFromSession() } : null
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return user
 }

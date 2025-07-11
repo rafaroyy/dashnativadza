@@ -1,173 +1,98 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Filter, Search, Edit, Trash2 } from "lucide-react"
-import { dbOperations, type Task, type User, type Project } from "@/lib/supabase"
+import { Plus, Search, Filter } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { CreateTaskModal } from "@/components/tasks/create-task-modal"
+import { createClient } from "@/lib/supabase/client"
+import { TaskCard } from "@/components/tasks/task-card"
+import { CreateTaskModal } from "@/components/tasks/add-task-modal"
 import { EditTaskModal } from "@/components/tasks/edit-task-modal"
-
-export const dynamic = "force-dynamic"
+import type { Task, Project, User } from "@/lib/supabase"
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
-  const [users, setUsers] = useState<User[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [isCreateModalOpen, setCreateModalOpen] = useState(false)
+  const [isEditModalOpen, setEditModalOpen] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const { toast } = useToast()
+  const supabase = createClient()
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      const [tasksData, usersData, projectsData] = await Promise.all([
-        dbOperations.getTasks(),
-        dbOperations.getUsers(),
-        dbOperations.getProjects(),
+      const [tasksRes, projectsRes, usersRes] = await Promise.all([
+        supabase.from("tasks").select("*, projects(*), users!tasks_assignee_id_fkey(*)"),
+        supabase.from("projects").select("*"),
+        supabase.from("users").select("*"),
       ])
-      setTasks(tasksData)
-      setUsers(usersData)
-      setProjects(projectsData)
-    } catch (error) {
-      console.error("Erro ao carregar dados:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as tarefas",
-        variant: "destructive",
-      })
+
+      if (tasksRes.error) throw tasksRes.error
+      if (projectsRes.error) throw projectsRes.error
+      if (usersRes.error) throw usersRes.error
+
+      setTasks(tasksRes.data as any)
+      setProjects(projectsRes.data)
+      setUsers(usersRes.data)
+    } catch (error: any) {
+      toast({ title: "Erro ao carregar dados", description: error.message, variant: "destructive" })
     } finally {
       setLoading(false)
     }
+  }, [supabase, toast])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const handleEdit = (task: Task) => {
+    setSelectedTask(task)
+    setEditModalOpen(true)
   }
 
-  const handleCreateTask = async (taskData: Omit<Task, "id" | "created_at" | "updated_at">) => {
-    try {
-      const newTask = await dbOperations.createTask(taskData)
-      setTasks([newTask, ...tasks])
-      setShowCreateModal(false)
-      toast({
-        title: "Sucesso",
-        description: "Tarefa criada com sucesso",
-      })
-    } catch (error) {
-      console.error("Erro ao criar tarefa:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar a tarefa",
-        variant: "destructive",
-      })
+  const handleDelete = async (taskId: string) => {
+    const { error } = await supabase.from("tasks").delete().eq("id", taskId)
+    if (error) {
+      toast({ title: "Erro ao deletar tarefa", description: error.message, variant: "destructive" })
+    } else {
+      toast({ title: "Tarefa deletada com sucesso" })
+      fetchData()
     }
   }
 
-  const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
-    try {
-      const updatedTask = await dbOperations.updateTask(id, updates)
-      setTasks(tasks.map((task) => (task.id === id ? updatedTask : task)))
-      setEditingTask(null)
-      toast({
-        title: "Sucesso",
-        description: "Tarefa atualizada com sucesso",
-      })
-    } catch (error) {
-      console.error("Erro ao atualizar tarefa:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar a tarefa",
-        variant: "destructive",
-      })
+  const handleStatusChange = async (taskId: string, status: string) => {
+    const { error } = await supabase.from("tasks").update({ status }).eq("id", taskId)
+    if (error) {
+      toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" })
+    } else {
+      toast({ title: "Status atualizado" })
+      fetchData()
     }
   }
 
-  const handleDeleteTask = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return
-
-    try {
-      await dbOperations.deleteTask(id)
-      setTasks(tasks.filter((task) => task.id !== id))
-      toast({
-        title: "Sucesso",
-        description: "Tarefa excluída com sucesso",
-      })
-    } catch (error) {
-      console.error("Erro ao excluir tarefa:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir a tarefa",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const filteredTasks = tasks.filter((task) => {
-    const matchesSearch =
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || task.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "done":
-        return "bg-green-100 text-green-800"
-      case "in_progress":
-        return "bg-blue-100 text-blue-800"
-      case "todo":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "destructive"
-      case "medium":
-        return "default"
-      case "low":
-        return "secondary"
-      default:
-        return "outline"
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
+  const filteredTasks = tasks.filter((task) => task.title.toLowerCase().includes(searchTerm.toLowerCase()))
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tarefas</h1>
-          <p className="text-gray-600">Gerencie todas as suas tarefas</p>
+          <h1 className="text-2xl font-bold">Tarefas</h1>
+          <p className="text-muted-foreground">Gerencie todas as suas tarefas</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
+        <Button onClick={() => setCreateModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nova Tarefa
         </Button>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <div className="flex items-center gap-4">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar tarefas..."
             className="pl-10"
@@ -175,87 +100,46 @@ export default function TasksPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="todo">A Fazer</SelectItem>
-            <SelectItem value="in_progress">Em Progresso</SelectItem>
-            <SelectItem value="done">Concluído</SelectItem>
-          </SelectContent>
-        </Select>
+        <Button variant="outline">
+          <Filter className="mr-2 h-4 w-4" />
+          Filtros
+        </Button>
       </div>
 
-      {filteredTasks.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-gray-500 mb-4">Nenhuma tarefa encontrada</p>
-            <Button onClick={() => setShowCreateModal(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Criar primeira tarefa
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
+      {loading ? (
+        <p>Carregando tarefas...</p>
+      ) : filteredTasks.length > 0 ? (
+        <div className="space-y-4">
           {filteredTasks.map((task) => (
-            <Card key={task.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{task.title}</CardTitle>
-                    <CardDescription>{task.description}</CardDescription>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getStatusColor(task.status)}>
-                      {task.status === "todo"
-                        ? "A Fazer"
-                        : task.status === "in_progress"
-                          ? "Em Progresso"
-                          : "Concluído"}
-                    </Badge>
-                    <Badge variant={getPriorityColor(task.priority)}>
-                      {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Média" : "Baixa"}
-                    </Badge>
-                    <Button variant="ghost" size="sm" onClick={() => setEditingTask(task)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteTask(task.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>Responsável: {task.assignee?.name || "Não atribuído"}</span>
-                  {task.due_date && <span>Prazo: {new Date(task.due_date).toLocaleDateString("pt-BR")}</span>}
-                </div>
-              </CardContent>
-            </Card>
+            <TaskCard
+              key={task.id}
+              task={task}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onStatusChange={handleStatusChange}
+            />
           ))}
         </div>
+      ) : (
+        <p className="text-center text-muted-foreground py-8">Nenhuma tarefa encontrada.</p>
       )}
 
       <CreateTaskModal
-        open={showCreateModal}
-        onOpenChange={setShowCreateModal}
-        onSubmit={handleCreateTask}
-        users={users}
+        isOpen={isCreateModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onTaskCreated={fetchData}
         projects={projects}
+        users={users}
       />
 
-      {editingTask && (
+      {selectedTask && (
         <EditTaskModal
-          open={!!editingTask}
-          onOpenChange={() => setEditingTask(null)}
-          task={editingTask}
-          onSubmit={(updates) => handleUpdateTask(editingTask.id, updates)}
-          users={users}
+          isOpen={isEditModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onTaskUpdated={fetchData}
+          task={selectedTask}
           projects={projects}
+          users={users}
         />
       )}
     </div>
