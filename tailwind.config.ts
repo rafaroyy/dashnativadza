@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss"
 
-const config = {
+const config: Config = {
   darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
@@ -26,7 +26,7 @@ const config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
+          DEFAULT: "#00D4AA",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -42,7 +42,7 @@ const config = {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
+          DEFAULT: "#00D4AA",
           foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
@@ -53,21 +53,6 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Cores customizadas do tema Digitalz
-        "digitalz-dark": {
-          primary: "#0F1114", // Sidebar
-          secondary: "#1A1D21", // Fundo principal
-        },
-        "digitalz-light": {
-          primary: "#F7F7F8",
-          secondary: "#FFFFFF",
-        },
-        "digitalz-cyan": {
-          DEFAULT: "#00A99D",
-          light: "#33BFAF",
-        },
-        "digitalz-border": "#363A3F",
-        "digitalz-gray": "#2A2D32",
       },
       borderRadius: {
         lg: "var(--radius)",

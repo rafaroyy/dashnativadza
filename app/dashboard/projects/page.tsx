@@ -1,30 +1,18 @@
-export const dynamic = "force-dynamic"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { FolderOpen } from "lucide-react"
 
-import { createClient } from "@/lib/supabase/server"
-import { dbOperations } from "@/lib/supabase"
-import ProjectsClient from "./projects-client"
-
-export default async function ProjectsPage() {
-  try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return <div>Usuário não autenticado</div>
-    }
-
-    // Buscar projetos e tarefas
-    const [projects, tasks, users] = await Promise.all([
-      dbOperations.getProjects(),
-      dbOperations.getTasks(),
-      dbOperations.getUsers(),
-    ])
-
-    return <ProjectsClient projects={projects} tasks={tasks} users={users} />
-  } catch (error) {
-    console.error("Erro ao carregar projetos:", error)
-    return <ProjectsClient projects={[]} tasks={[]} users={[]} />
-  }
+export default function ProjectsPage() {
+  return (
+    <Card className="digitalz-card">
+      <CardHeader>
+        <CardTitle className="flex items-center text-white">
+          <FolderOpen className="w-6 h-6 mr-3 text-digitalz-cyan" />
+          Projetos
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-gray-400">A área de gerenciamento de projetos será implementada aqui.</p>
+      </CardContent>
+    </Card>
+  )
 }

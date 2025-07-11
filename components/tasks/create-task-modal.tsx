@@ -1,157 +1,98 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { useFormState, useFormStatus } from "react-dom"
+import { createTask } from "@/app/dashboard/actions"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
-
-// Tipagens
-interface Space {
-  id: string
-  name: string
-}
-
-interface TaskFormData {
-  title: string
-  description: string
-  status: "todo" | "in_progress" | "completed"
-  priority: "low" | "medium" | "high"
-  space_id: string
-}
+import { useEffect, useRef } from "react"
+import { toast } from "sonner"
 
 interface CreateTaskModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onCreateTask: (taskData: TaskFormData) => Promise<void>
-  spaces: Space[]
+  isOpen: boolean
+  setIsOpen: (isOpen: boolean) => void
+  spaces: { id: string; name: string }[]
 }
 
-export function CreateTaskModal({ open, onOpenChange, onCreateTask, spaces }: CreateTaskModalProps) {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState<TaskFormData>({
-    title: "",
-    description: "",
-    status: "todo",
-    priority: "medium",
-    space_id: "",
-  })
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" disabled={pending} className="bg-digitalz-cyan text-black hover:bg-digitalz-cyan-light">
+      {pending ? "Criando..." : "Criar Tarefa"}
+    </Button>
+  )
+}
 
-  const handleFieldChange = (field: keyof TaskFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+export default function CreateTaskModal({ isOpen, setIsOpen, spaces }: CreateTaskModalProps) {
+  const initialState = { errors: {}, message: null }
+  const [state, dispatch] = useFormState(createTask, initialState)
+  const formRef = useRef<HTMLFormElement>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formData.space_id) {
-      toast({ title: "Erro de Validação", description: "É obrigatório selecionar um espaço.", variant: "destructive" })
-      return
+  useEffect(() => {
+    if (state.message) {
+      toast.success(state.message)
+      setIsOpen(false)
+      formRef.current?.reset()
     }
-    if (!formData.title.trim()) {
-      toast({ title: "Erro de Validação", description: "O título é obrigatório.", variant: "destructive" })
-      return
+    if (state.errors?._form) {
+      toast.error(state.errors._form.join(", "))
     }
-
-    setLoading(true)
-    try {
-      await onCreateTask(formData)
-      setFormData({ title: "", description: "", status: "todo", priority: "medium", space_id: "" })
-      onOpenChange(false)
-    } catch (error) {
-      // O erro já é tratado no componente pai, não precisa de toast aqui.
-      console.error("Falha ao criar tarefa no modal:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [state, setIsOpen])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="bg-digitalz-dark-secondary border-digitalz-border text-white">
         <DialogHeader>
           <DialogTitle>Criar Nova Tarefa</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="space_id" className="text-right">
-                Espaço
-              </Label>
-              <Select value={formData.space_id} onValueChange={(value) => handleFieldChange("space_id", value)}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Selecione um espaço" />
-                </SelectTrigger>
-                <SelectContent>
-                  {spaces.map((space) => (
-                    <SelectItem key={space.id} value={space.id}>
-                      {space.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
-                Título
-              </Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => handleFieldChange("title", e.target.value)}
-                className="col-span-3"
-                placeholder="Ex: Revisar documentação"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">
-                Descrição
-              </Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => handleFieldChange("description", e.target.value)}
-                className="col-span-3"
-                placeholder="Detalhes da tarefa (opcional)"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="priority" className="text-right">
-                Prioridade
-              </Label>
-              <Select
-                value={formData.priority}
-                onValueChange={(value: "low" | "medium" | "high") => handleFieldChange("priority", value)}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Baixa</SelectItem>
-                  <SelectItem value="medium">Média</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <form action={dispatch} ref={formRef} className="space-y-4">
+          <div>
+            <Label htmlFor="title">Título da Tarefa</Label>
+            <Input id="title" name="title" required className="bg-digitalz-gray border-digitalz-border" />
+            {state.errors?.title && <p className="text-red-500 text-sm mt-1">{state.errors.title}</p>}
+          </div>
+          <div>
+            <Label htmlFor="space_id">Espaço</Label>
+            <Select name="space_id" required>
+              <SelectTrigger className="bg-digitalz-gray border-digitalz-border">
+                <SelectValue placeholder="Selecione um espaço" />
+              </SelectTrigger>
+              <SelectContent className="bg-digitalz-dark-secondary border-digitalz-border text-white">
+                {spaces.map((space) => (
+                  <SelectItem key={space.id} value={space.id}>
+                    {space.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {state.errors?.space_id && <p className="text-red-500 text-sm mt-1">{state.errors.space_id}</p>}
+          </div>
+          <div>
+            <Label htmlFor="priority">Prioridade</Label>
+            <Select name="priority" defaultValue="normal">
+              <SelectTrigger className="bg-digitalz-gray border-digitalz-border">
+                <SelectValue placeholder="Selecione a prioridade" />
+              </SelectTrigger>
+              <SelectContent className="bg-digitalz-dark-secondary border-digitalz-border text-white">
+                <SelectItem value="low">Baixa</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="high">Alta</SelectItem>
+                <SelectItem value="urgent">Urgente</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="secondary">
+              <Button type="button" variant="ghost">
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Criando..." : "Criar Tarefa"}
-            </Button>
+            <SubmitButton />
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   )
 }
-
-export default CreateTaskModal

@@ -1,230 +1,240 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Mail, Calendar, MessageCircle, UserMinus } from "lucide-react"
-import { dbOperations, type User, type Task } from "@/lib/supabase"
-import { ChatModal } from "./chat-modal"
+import { Switch } from "@/components/ui/switch"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Mail, Phone, MapPin, Calendar, Edit } from "lucide-react"
+
+interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: string
+  phone: string
+  location: string
+  profile_image_url: string
+  online_status: boolean
+  created_at: string
+}
 
 interface MemberProfileModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  user: User
-  currentUserId: string
-  onRemove?: (userId: string) => void
-  canRemove?: boolean
+  member: TeamMember
+  onMemberUpdate: (member: TeamMember) => void
 }
 
-export function MemberProfileModal({
-  open,
-  onOpenChange,
-  user,
-  currentUserId,
-  onRemove,
-  canRemove = false,
-}: MemberProfileModalProps) {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(false)
-  const [chatOpen, setChatOpen] = useState(false)
+export function MemberProfileModal({ open, onOpenChange, member, onMemberUpdate }: MemberProfileModalProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    role: "",
+    phone: "",
+    location: "",
+    online_status: false,
+  })
 
   useEffect(() => {
-    if (open && user.id) {
-      loadUserTasks()
+    if (member) {
+      setFormData({
+        name: member.name,
+        email: member.email,
+        role: member.role,
+        phone: member.phone,
+        location: member.location,
+        online_status: member.online_status,
+      })
     }
-  }, [open, user.id])
+  }, [member])
 
-  const loadUserTasks = async () => {
-    setLoading(true)
-    try {
-      const allTasks = await dbOperations.getTasks()
-      const userTasks = allTasks.filter((task) => task.assignee_id === user.id)
-      setTasks(userTasks)
-    } catch (error) {
-      console.error("Error loading user tasks:", error)
-    } finally {
-      setLoading(false)
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const updatedMember: TeamMember = {
+      ...member,
+      name: formData.name,
+      email: formData.email,
+      role: formData.role,
+      phone: formData.phone,
+      location: formData.location,
+      online_status: formData.online_status,
     }
+
+    onMemberUpdate(updatedMember)
+    setIsEditing(false)
   }
 
-  const getTaskStats = () => {
-    const total = tasks.length
-    const completed = tasks.filter((task) => task.status === "done").length
-    const inProgress = tasks.filter((task) => task.status === "in_progress").length
-    const todo = tasks.filter((task) => task.status === "todo").length
-
-    return { total, completed, inProgress, todo }
+  const getStatusColor = (status: boolean) => {
+    return status ? "bg-green-500" : "bg-gray-500"
   }
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      todo: { label: "A Fazer", variant: "secondary" as const },
-      in_progress: { label: "Em Progresso", variant: "default" as const },
-      done: { label: "Concluído", variant: "default" as const },
-    }
-    return statusConfig[status as keyof typeof statusConfig] || statusConfig.todo
+  const getStatusText = (status: boolean) => {
+    return status ? "Online" : "Offline"
   }
-
-  const getPriorityBadge = (priority: string) => {
-    const priorityConfig = {
-      low: { label: "Baixa", variant: "secondary" as const },
-      medium: { label: "Média", variant: "default" as const },
-      high: { label: "Alta", variant: "destructive" as const },
-    }
-    return priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.medium
-  }
-
-  const stats = getTaskStats()
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px] h-[600px] flex flex-col p-0">
-          <DialogHeader className="px-6 py-4 border-b">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle>{isEditing ? "Editar Perfil" : "Perfil do Membro"}</DialogTitle>
+              <DialogDescription>
+                {isEditing ? "Faça alterações no perfil" : "Informações detalhadas do membro"}
+              </DialogDescription>
+            </div>
+            {!isEditing && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            )}
+          </div>
+        </DialogHeader>
+
+        {isEditing ? (
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="role">Função</Label>
+                <Input
+                  id="role"
+                  value={formData.role}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, role: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location">Localização</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="online_status">Status Online</Label>
+                <Switch
+                  id="online_status"
+                  checked={formData.online_status}
+                  onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, online_status: checked }))}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90">
+                Salvar Alterações
+              </Button>
+            </DialogFooter>
+          </form>
+        ) : (
+          <div className="py-4 space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="relative">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={user.profile_image_url || "/placeholder.svg"} alt={user.name} />
+                  <AvatarImage src={member.profile_image_url || "/placeholder.svg"} alt={member.name} />
                   <AvatarFallback className="text-lg">
-                    {user.name
+                    {member.name
                       .split(" ")
                       .map((n) => n[0])
                       .join("")}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <DialogTitle className="text-xl">{user.name}</DialogTitle>
-                  <p className="text-muted-foreground">{user.email}</p>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <div className={`w-2 h-2 rounded-full ${user.online_status ? "bg-green-500" : "bg-gray-400"}`} />
-                    <span className="text-sm text-muted-foreground">{user.online_status ? "Online" : "Offline"}</span>
-                  </div>
-                </div>
+                <div
+                  className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white ${getStatusColor(member.online_status)}`}
+                />
               </div>
-              <div className="flex items-center space-x-2">
-                {currentUserId !== user.id && (
-                  <Button variant="outline" size="sm" onClick={() => setChatOpen(true)}>
-                    <MessageCircle className="h-4 w-4 mr-1" />
-                    Chat
-                  </Button>
-                )}
-                {canRemove && currentUserId !== user.id && (
-                  <Button variant="outline" size="sm" onClick={() => onRemove?.(user.id)}>
-                    <UserMinus className="h-4 w-4 mr-1" />
-                    Remover
-                  </Button>
-                )}
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold">{member.name}</h3>
+                <p className="text-muted-foreground">{member.role}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline">Equipe</Badge>
+                  <Badge className={getStatusColor(member.online_status)}>{getStatusText(member.online_status)}</Badge>
+                </div>
               </div>
             </div>
-          </DialogHeader>
 
-          <div className="flex-1 overflow-hidden">
-            <Tabs defaultValue="overview" className="h-full flex flex-col">
-              <TabsList className="mx-6 mt-4">
-                <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-                <TabsTrigger value="tasks">Tarefas ({tasks.length})</TabsTrigger>
-              </TabsList>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">{member.email}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">{member.phone}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">{member.location}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Entrou em {new Date(member.created_at).toLocaleDateString("pt-BR")}</span>
+              </div>
+            </div>
 
-              <TabsContent value="overview" className="flex-1 px-6 pb-6">
-                <div className="space-y-6">
-                  {/* User Stats */}
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <div className="text-2xl font-bold">{stats.total}</div>
-                      <div className="text-sm text-muted-foreground">Total</div>
-                    </div>
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">{stats.todo}</div>
-                      <div className="text-sm text-muted-foreground">A Fazer</div>
-                    </div>
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <div className="text-2xl font-bold text-yellow-600">{stats.inProgress}</div>
-                      <div className="text-sm text-muted-foreground">Em Progresso</div>
-                    </div>
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-                      <div className="text-sm text-muted-foreground">Concluído</div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* User Info */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Informações</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-3">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{user.email}</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">
-                          Membro desde {new Date(user.created_at).toLocaleDateString("pt-BR")}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="tasks" className="flex-1">
-                <ScrollArea className="h-full px-6 pb-6">
-                  {loading ? (
-                    <div className="flex items-center justify-center h-32">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    </div>
-                  ) : tasks.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">Nenhuma tarefa atribuída</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {tasks.map((task) => (
-                        <div key={task.id} className="border rounded-lg p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium">{task.title}</h4>
-                              {task.description && (
-                                <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
-                              )}
-                              <div className="flex items-center space-x-4 mt-3">
-                                <Badge {...getStatusBadge(task.status)}>{getStatusBadge(task.status).label}</Badge>
-                                <Badge {...getPriorityBadge(task.priority)}>
-                                  {getPriorityBadge(task.priority).label}
-                                </Badge>
-                                {task.due_date && (
-                                  <div className="flex items-center text-sm text-muted-foreground">
-                                    <Calendar className="h-4 w-4 mr-1" />
-                                    {new Date(task.due_date).toLocaleDateString("pt-BR")}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            {task.project && (
-                              <div className="flex items-center space-x-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: task.project.color }} />
-                                <span className="text-sm text-muted-foreground">{task.project.name}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-            </Tabs>
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+              <div className="text-center">
+                <div className="text-2xl font-bold">0</div>
+                <div className="text-sm text-muted-foreground">Tarefas Concluídas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold">0</div>
+                <div className="text-sm text-muted-foreground">Projetos Ativos</div>
+              </div>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <ChatModal open={chatOpen} onOpenChange={setChatOpen} user={user} currentUserId={currentUserId} />
-    </>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
