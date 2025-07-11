@@ -1,23 +1,31 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Filter } from "lucide-react"
 import { CreateTaskModal } from "@/components/tasks/create-task-modal"
 import { useToast } from "@/hooks/use-toast"
 
+// Tipagem para a tarefa, alinhada com o banco de dados
 interface Task {
   id: string
+  title: string
+  description: string | null
+  status: "todo" | "in_progress" | "completed"
+  priority: "low" | "medium" | "high"
+  created_at: string
+}
+
+// Tipagem para os dados que vêm do modal
+interface TaskFormData {
   title: string
   description: string
   status: "todo" | "in_progress" | "completed"
   priority: "low" | "medium" | "high"
-  created_at: string
-  updated_at: string
 }
 
 export default function TasksPage() {
@@ -28,139 +36,78 @@ export default function TasksPage() {
   const { toast } = useToast()
   const supabase = createClient()
 
+  const fetchTasks = useCallback(async () => {
+    setLoading(true)
+    const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false })
+
+    if (error) {
+      toast({ title: "Erro ao carregar tarefas", description: error.message, variant: "destructive" })
+    } else {
+      setTasks(data || [])
+    }
+    setLoading(false)
+  }, [supabase, toast])
+
   useEffect(() => {
     fetchTasks()
-  }, [])
+  }, [fetchTasks])
 
-  async function fetchTasks() {
-    try {
-      setLoading(true)
-      const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false })
+  const handleCreateTask = async (taskData: TaskFormData) => {
+    const { data, error } = await supabase.from("tasks").insert([taskData]).select().single()
 
-      if (error) throw error
-      setTasks(data || [])
-    } catch (error) {
-      console.error("Erro ao buscar tarefas:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as tarefas",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
+    if (error) {
+      toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" })
+      // Rejeita a promise para que o modal saiba que falhou
+      throw new Error(error.message)
     }
-  }
 
-  async function handleCreateTask(taskData: Omit<Task, "id" | "created_at" | "updated_at">) {
-    try {
-      const { data, error } = await supabase.from("tasks").insert([taskData]).select().single()
-
-      if (error) throw error
-
-      setTasks((prev) => [data, ...prev])
-      setIsCreateModalOpen(false)
-      toast({
-        title: "Sucesso",
-        description: "Tarefa criada com sucesso!",
-      })
-    } catch (error) {
-      console.error("Erro ao criar tarefa:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar a tarefa",
-        variant: "destructive",
-      })
-    }
-  }
-
-  async function handleStatusChange(taskId: string, newStatus: Task["status"]) {
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", taskId)
-
-      if (error) throw error
-
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId ? { ...task, status: newStatus, updated_at: new Date().toISOString() } : task,
-        ),
-      )
-
-      toast({
-        title: "Sucesso",
-        description: "Status da tarefa atualizado!",
-      })
-    } catch (error) {
-      console.error("Erro ao atualizar tarefa:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar a tarefa",
-        variant: "destructive",
-      })
-    }
+    toast({ title: "Sucesso!", description: "Tarefa criada com sucesso." })
+    // Adiciona a nova tarefa no início da lista para feedback imediato
+    setTasks((prev) => [data, ...prev])
   }
 
   const filteredTasks = tasks.filter(
     (task) =>
       task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      task.description?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const getStatusBadge = (status: Task["status"]) => {
-    switch (status) {
-      case "completed":
-        return <Badge className="bg-green-500">Concluída</Badge>
-      case "in_progress":
-        return <Badge className="bg-blue-500">Em andamento</Badge>
-      default:
-        return <Badge variant="outline">Pendente</Badge>
-    }
+  const getPriorityBadgeVariant = (priority: Task["priority"]): "destructive" | "secondary" | "default" => {
+    if (priority === "high") return "destructive"
+    if (priority === "medium") return "secondary"
+    return "default"
   }
 
-  const getPriorityBadge = (priority: Task["priority"]) => {
-    switch (priority) {
-      case "high":
-        return <Badge variant="destructive">Alta</Badge>
-      case "medium":
-        return <Badge className="bg-yellow-500">Média</Badge>
-      default:
-        return <Badge variant="secondary">Baixa</Badge>
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Carregando tarefas...</div>
-      </div>
-    )
+  const getStatusLabel = (status: Task["status"]): string => {
+    if (status === "in_progress") return "Em andamento"
+    if (status === "completed") return "Concluída"
+    return "Pendente"
   }
 
   return (
-    <div className="space-y-6">
-      {/* Cabeçalho */}
+    <div className="space-y-6 p-4 md:p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tarefas</h1>
-          <p className="text-gray-600">Gerencie todas as suas tarefas</p>
+          <h1 className="text-2xl font-bold">Tarefas</h1>
+          <p className="text-muted-foreground">Gerencie todas as suas tarefas aqui.</p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)} className="bg-teal-500 hover:bg-teal-600">
+        <Button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="bg-digitalz-cyan hover:bg-digitalz-cyan-light text-black"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Nova Tarefa
         </Button>
       </div>
 
-      {/* Barra de busca e filtros */}
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <div className="flex items-center gap-4">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar tarefas..."
+            className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
           />
         </div>
         <Button variant="outline">
@@ -169,58 +116,33 @@ export default function TasksPage() {
         </Button>
       </div>
 
-      {/* Lista de tarefas */}
-      <div className="space-y-4">
-        {filteredTasks.length > 0 ? (
-          filteredTasks.map((task) => (
-            <Card key={task.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{task.title}</CardTitle>
-                    <p className="text-sm text-gray-600">{task.description}</p>
-                  </div>
-                  <div className="flex space-x-2">
-                    {getStatusBadge(task.status)}
-                    {getPriorityBadge(task.priority)}
-                  </div>
+      {loading ? (
+        <div className="text-center py-10">Carregando tarefas...</div>
+      ) : filteredTasks.length > 0 ? (
+        <div className="space-y-4">
+          {filteredTasks.map((task) => (
+            <Card key={task.id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle>{task.title}</CardTitle>
+                  <Badge variant={getPriorityBadgeVariant(task.priority)}>{task.priority}</Badge>
                 </div>
+                <CardDescription>{task.description || "Sem descrição."}</CardDescription>
               </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
-                    Criada em {new Date(task.created_at).toLocaleDateString("pt-BR")}
-                  </p>
-                  <div className="flex space-x-2">
-                    {task.status !== "completed" && (
-                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(task.id, "completed")}>
-                        Concluir
-                      </Button>
-                    )}
-                    {task.status === "todo" && (
-                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(task.id, "in_progress")}>
-                        Iniciar
-                      </Button>
-                    )}
-                  </div>
+              <CardContent>
+                <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <span>{getStatusLabel(task.status)}</span>
+                  <span>Prazo: {task.created_at ? new Date(task.created_at).toLocaleDateString() : "N/A"}</span>
                 </div>
               </CardContent>
             </Card>
-          ))
-        ) : (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-gray-500 mb-4">
-                {searchTerm ? "Nenhuma tarefa encontrada para sua busca" : "Nenhuma tarefa encontrada"}
-              </p>
-              <Button onClick={() => setIsCreateModalOpen(true)} className="bg-teal-500 hover:bg-teal-600">
-                <Plus className="mr-2 h-4 w-4" />
-                Criar primeira tarefa
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-10 border-2 border-dashed rounded-lg">
+          <p className="text-muted-foreground">Nenhuma tarefa encontrada.</p>
+        </div>
+      )}
 
       <CreateTaskModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} onCreateTask={handleCreateTask} />
     </div>
