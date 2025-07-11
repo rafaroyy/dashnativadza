@@ -1,34 +1,52 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { createServerClient } from "@supabase/ssr"
+import { NextResponse, type NextRequest } from "next/server"
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
-  // Rotas que precisam de autenticação
-  const protectedRoutes = ["/dashboard", "/tasks", "/projects", "/teams", "/settings"]
-  const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+        },
+      },
+    },
+  )
 
-  // Rotas públicas
-  const publicRoutes = ["/login", "/signup", "/"]
-  const isPublicRoute = publicRoutes.includes(pathname)
-
-  // Verificar se tem sessão de usuário
+  // Check if user has session cookie
   const userSession = request.cookies.get("user_session")
-  const hasValidSession = userSession && userSession.value
+  const isAuthPage = request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup"
+  const isProtectedRoute = ["/dashboard", "/tasks", "/projects", "/teams", "/settings"].some((route) =>
+    request.nextUrl.pathname.startsWith(route),
+  )
 
-  // Se está tentando acessar rota protegida sem sessão
-  if (isProtectedRoute && !hasValidSession) {
+  // If no session and trying to access protected route, redirect to login
+  if (!userSession && isProtectedRoute) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  // Se está logado e tentando acessar login, redireciona para dashboard
-  if (hasValidSession && pathname === "/login") {
+  // If has session and trying to access auth pages, redirect to dashboard
+  if (userSession && isAuthPage) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|public).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 }

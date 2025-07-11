@@ -1,98 +1,194 @@
 "use client"
 
-import { useFormState, useFormStatus } from "react-dom"
-import { createTask } from "@/app/dashboard/actions"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEffect, useRef } from "react"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
+import * as z from "zod"
 
-interface CreateTaskModalProps {
-  isOpen: boolean
-  setIsOpen: (isOpen: boolean) => void
-  spaces: { id: string; name: string }[]
+export interface CreateTaskModalProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSubmit: (data: Omit<TaskFormData, "id" | "created_at" | "updated_at">) => Promise<void> | void
+  users: { id: string; name: string }[]
+  projects: { id: string; name: string }[]
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus()
-  return (
-    <Button type="submit" disabled={pending} className="bg-digitalz-cyan text-black hover:bg-digitalz-cyan-light">
-      {pending ? "Criando..." : "Criar Tarefa"}
-    </Button>
-  )
-}
+const TaskSchema = z.object({
+  title: z.string().min(3, "O título deve ter pelo menos 3 caracteres"),
+  description: z.string().optional(),
+  priority: z.enum(["high", "medium", "low"]),
+  status: z.enum(["todo", "in_progress", "done"]),
+  assignee_id: z.string().uuid().optional().nullable(),
+  project_id: z.string().uuid().optional().nullable(),
+})
 
-export default function CreateTaskModal({ isOpen, setIsOpen, spaces }: CreateTaskModalProps) {
-  const initialState = { errors: {}, message: null }
-  const [state, dispatch] = useFormState(createTask, initialState)
-  const formRef = useRef<HTMLFormElement>(null)
+type TaskFormData = z.infer<typeof TaskSchema>
 
-  useEffect(() => {
-    if (state.message) {
-      toast.success(state.message)
-      setIsOpen(false)
-      formRef.current?.reset()
+function CreateTaskModal(props: CreateTaskModalProps) {
+  const { open, onOpenChange, onSubmit, users, projects } = props
+  const { toast } = useToast()
+
+  const [form, setForm] = useState<TaskFormData>({
+    title: "",
+    description: "",
+    priority: "medium",
+    status: "todo",
+    assignee_id: null,
+    project_id: null,
+  })
+  const [loading, setLoading] = useState(false)
+
+  const handleChange = (key: keyof TaskFormData, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }))
+
+  const handleSubmit = async () => {
+    const parse = TaskSchema.safeParse(form)
+    if (!parse.success) {
+      toast({
+        title: "Erro no formulário",
+        description: parse.error.issues[0].message,
+        variant: "destructive",
+      })
+      return
     }
-    if (state.errors?._form) {
-      toast.error(state.errors._form.join(", "))
+    try {
+      setLoading(true)
+      await onSubmit(parse.data)
+      onOpenChange(false)
+      setForm({
+        title: "",
+        description: "",
+        priority: "medium",
+        status: "todo",
+        assignee_id: null,
+        project_id: null,
+      })
+    } catch {
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar a tarefa",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
-  }, [state, setIsOpen])
+  }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="bg-digitalz-dark-secondary border-digitalz-border text-white">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Criar Nova Tarefa</DialogTitle>
         </DialogHeader>
-        <form action={dispatch} ref={formRef} className="space-y-4">
+
+        <div className="space-y-4">
           <div>
-            <Label htmlFor="title">Título da Tarefa</Label>
-            <Input id="title" name="title" required className="bg-digitalz-gray border-digitalz-border" />
-            {state.errors?.title && <p className="text-red-500 text-sm mt-1">{state.errors.title}</p>}
+            <Label htmlFor="title">Título</Label>
+            <Input
+              id="title"
+              value={form.title}
+              onChange={(e) => handleChange("title", e.target.value)}
+              placeholder="Título da tarefa"
+            />
           </div>
+
           <div>
-            <Label htmlFor="space_id">Espaço</Label>
-            <Select name="space_id" required>
-              <SelectTrigger className="bg-digitalz-gray border-digitalz-border">
-                <SelectValue placeholder="Selecione um espaço" />
-              </SelectTrigger>
-              <SelectContent className="bg-digitalz-dark-secondary border-digitalz-border text-white">
-                {spaces.map((space) => (
-                  <SelectItem key={space.id} value={space.id}>
-                    {space.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {state.errors?.space_id && <p className="text-red-500 text-sm mt-1">{state.errors.space_id}</p>}
+            <Label htmlFor="description">Descrição</Label>
+            <Textarea
+              id="description"
+              value={form.description ?? ""}
+              onChange={(e) => handleChange("description", e.target.value)}
+              placeholder="Descrição da tarefa (opcional)"
+            />
           </div>
-          <div>
-            <Label htmlFor="priority">Prioridade</Label>
-            <Select name="priority" defaultValue="normal">
-              <SelectTrigger className="bg-digitalz-gray border-digitalz-border">
-                <SelectValue placeholder="Selecione a prioridade" />
-              </SelectTrigger>
-              <SelectContent className="bg-digitalz-dark-secondary border-digitalz-border text-white">
-                <SelectItem value="low">Baixa</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="high">Alta</SelectItem>
-                <SelectItem value="urgent">Urgente</SelectItem>
-              </SelectContent>
-            </Select>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Prioridade</Label>
+              <Select value={form.priority} onValueChange={(value) => handleChange("priority", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Prioridade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">Alta</SelectItem>
+                  <SelectItem value="medium">Média</SelectItem>
+                  <SelectItem value="low">Baixa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(value) => handleChange("status", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">A Fazer</SelectItem>
+                  <SelectItem value="in_progress">Em Progresso</SelectItem>
+                  <SelectItem value="done">Concluída</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="ghost">
-                Cancelar
-              </Button>
-            </DialogClose>
-            <SubmitButton />
-          </DialogFooter>
-        </form>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Atribuir a</Label>
+              <Select
+                value={form.assignee_id ?? "none"}
+                onValueChange={(value) => handleChange("assignee_id", value === "none" ? null : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar membro" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Ninguém</SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Projeto</Label>
+              <Select
+                value={form.project_id ?? "none"}
+                onValueChange={(value) => handleChange("project_id", value === "none" ? null : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Button onClick={handleSubmit} disabled={loading} className="w-full">
+            {loading ? "Salvando..." : "Criar Tarefa"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )
 }
+
+/* -------------------------------------------------- *
+ *  Exports                                           *
+ * -------------------------------------------------- */
+export { CreateTaskModal } //  named
+export default CreateTaskModal //  default

@@ -1,80 +1,50 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "./supabase/client"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient()
 
 export interface User {
   id: string
   name: string
   email: string
-  password: string
-  phone?: string
   role?: string
+  phone?: string
   location?: string
   profile_image_url?: string
   online_status?: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface Workspace {
-  id: string
-  name: string
-  description?: string
-  owner_id: string
-  created_at: string
-  updated_at: string
-}
-
-export interface Project {
-  id: string
-  name: string
-  description?: string
-  workspace_id: string
-  status: string
-  color: string
-  progress: number
-  deadline?: string
-  created_by?: string
-  created_at: string
-  updated_at: string
+  created_at?: string
+  updated_at?: string
 }
 
 export interface Task {
   id: string
   title: string
   description?: string
-  project_id: string
-  assignee_id?: string
-  created_by?: string
-  status: string
-  priority: string
+  status: "todo" | "in_progress" | "done"
+  priority: "low" | "medium" | "high"
+  assigned_to?: string
+  project_id?: string
+  space_id?: string
   due_date?: string
-  completed: boolean
-  created_at: string
-  updated_at: string
+  completed?: boolean
+  created_at?: string
+  updated_at?: string
   assignee?: User
   project?: Project
 }
 
-export interface Message {
+export interface Project {
   id: string
-  content: string
-  sender_id: string
-  receiver_id: string
-  read_at?: string
-  created_at: string
-}
-
-export interface WorkspaceMember {
-  id: string
-  workspace_id: string
-  user_id: string
-  role: string
-  created_at: string
-  user?: User
+  name: string
+  title?: string
+  description?: string
+  status: "active" | "completed" | "on_hold"
+  progress?: number
+  color?: string
+  deadline?: string
+  members_count?: number
+  tasks_total?: number
+  created_at?: string
+  updated_at?: string
 }
 
 export interface ProjectMember {
@@ -82,278 +52,149 @@ export interface ProjectMember {
   project_id: string
   user_id: string
   role: string
-  created_at: string
   user?: User
 }
 
 export const dbOperations = {
   // Users
-  async getUsers(): Promise<User[]> {
-    const { data, error } = await supabase.from("users").select("*").order("name")
-
+  async getUsers() {
+    const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
     if (error) throw error
-    return data || []
+    return data as User[]
   },
 
-  async getUserById(id: string): Promise<User | null> {
+  async getUserById(id: string) {
     const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
-
-    if (error) return null
-    return data
-  },
-
-  async getUserByEmail(email: string): Promise<User | null> {
-    const { data, error } = await supabase.from("users").select("*").eq("email", email).single()
-
-    if (error) return null
-    return data
-  },
-
-  async getUserByEmailAndPassword(email: string, password: string): Promise<User | null> {
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("email", email)
-      .eq("password", password)
-      .single()
-
-    if (error) return null
-    return data
-  },
-
-  async createUser(user: Omit<User, "id" | "created_at" | "updated_at">): Promise<User | null> {
-    const { data, error } = await supabase.from("users").insert(user).select().single()
-
     if (error) throw error
-    return data
+    return data as User
   },
 
-  async updateUser(id: string, updates: Partial<User>): Promise<User | null> {
-    const { data, error } = await supabase
-      .from("users")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single()
-
+  async updateUser(id: string, updates: Partial<User>) {
+    const { data, error } = await supabase.from("users").update(updates).eq("id", id).select().single()
     if (error) throw error
-    return data
+    return data as User
   },
 
-  // Workspaces
-  async getWorkspaces(): Promise<Workspace[]> {
-    const { data, error } = await supabase.from("workspaces").select("*").order("name")
-
+  async createUser(user: Omit<User, "id" | "created_at" | "updated_at">) {
+    const { data, error } = await supabase.from("users").insert([user]).select().single()
     if (error) throw error
-    return data || []
-  },
-
-  async createWorkspace(workspace: Omit<Workspace, "id" | "created_at" | "updated_at">): Promise<Workspace> {
-    const { data, error } = await supabase.from("workspaces").insert(workspace).select().single()
-
-    if (error) throw error
-    return data
-  },
-
-  // Projects
-  async getProjects(): Promise<Project[]> {
-    const { data, error } = await supabase.from("projects").select("*").order("name")
-
-    if (error) throw error
-    return data || []
-  },
-
-  async getProjectsByWorkspace(workspaceId: string): Promise<Project[]> {
-    const { data, error } = await supabase.from("projects").select("*").eq("workspace_id", workspaceId).order("name")
-
-    if (error) throw error
-    return data || []
-  },
-
-  async createProject(project: Omit<Project, "id" | "created_at" | "updated_at">): Promise<Project> {
-    const { data, error } = await supabase.from("projects").insert(project).select().single()
-
-    if (error) throw error
-    return data
-  },
-
-  async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
-    const { data, error } = await supabase
-      .from("projects")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single()
-
-    if (error) throw error
-    return data
-  },
-
-  async deleteProject(id: string): Promise<void> {
-    const { error } = await supabase.from("projects").delete().eq("id", id)
-
-    if (error) throw error
+    return data as User
   },
 
   // Tasks
-  async getTasks(): Promise<Task[]> {
+  async getTasks() {
     const { data, error } = await supabase
       .from("tasks")
       .select(`
         *,
-        assignee:users!assignee_id(id, name, email, profile_image_url),
-        project:projects(id, name, color)
+        assignee:users!assigned_to(id, name, email, profile_image_url),
+        project:projects!project_id(id, name, title, color)
       `)
       .order("created_at", { ascending: false })
-
     if (error) throw error
-    return data || []
+    return data as Task[]
   },
 
-  async getTasksByProject(projectId: string): Promise<Task[]> {
+  async getTasksByProject(projectId: string) {
     const { data, error } = await supabase
       .from("tasks")
       .select(`
         *,
-        assignee:users!assignee_id(id, name, email, profile_image_url),
-        project:projects(id, name, color)
+        assignee:users!assigned_to(id, name, email, profile_image_url)
       `)
       .eq("project_id", projectId)
       .order("created_at", { ascending: false })
-
     if (error) throw error
-    return data || []
+    return data as Task[]
   },
 
-  async createTask(task: Omit<Task, "id" | "created_at" | "updated_at">): Promise<Task> {
+  async createTask(task: Omit<Task, "id" | "created_at" | "updated_at">) {
     const { data, error } = await supabase
       .from("tasks")
-      .insert(task)
+      .insert([task])
       .select(`
         *,
-        assignee:users!assignee_id(id, name, email, profile_image_url),
-        project:projects(id, name, color)
+        assignee:users!assigned_to(id, name, email, profile_image_url),
+        project:projects!project_id(id, name, title, color)
       `)
       .single()
-
     if (error) throw error
-    return data
+    return data as Task
   },
 
-  async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
+  async updateTask(id: string, updates: Partial<Task>) {
     const { data, error } = await supabase
       .from("tasks")
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq("id", id)
       .select(`
         *,
-        assignee:users!assignee_id(id, name, email, profile_image_url),
-        project:projects(id, name, color)
+        assignee:users!assigned_to(id, name, email, profile_image_url),
+        project:projects!project_id(id, name, title, color)
       `)
       .single()
-
     if (error) throw error
-    return data
+    return data as Task
   },
 
-  async deleteTask(id: string): Promise<void> {
+  async deleteTask(id: string) {
     const { error } = await supabase.from("tasks").delete().eq("id", id)
-
     if (error) throw error
   },
 
-  // Messages
-  async getMessages(userId1: string, userId2: string): Promise<Message[]> {
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .or(
-        `and(sender_id.eq.${userId1},receiver_id.eq.${userId2}),and(sender_id.eq.${userId2},receiver_id.eq.${userId1})`,
-      )
-      .order("created_at", { ascending: true })
-
+  // Projects
+  async getProjects() {
+    const { data, error } = await supabase.from("projects").select("*").order("created_at", { ascending: false })
     if (error) throw error
-    return data || []
+    return data as Project[]
   },
 
-  async sendMessage(message: Omit<Message, "id" | "created_at">): Promise<Message> {
-    const { data, error } = await supabase.from("messages").insert(message).select().single()
-
+  async getProjectById(id: string) {
+    const { data, error } = await supabase.from("projects").select("*").eq("id", id).single()
     if (error) throw error
-    return data
+    return data as Project
   },
 
-  // Workspace Members
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMember[]> {
-    const { data, error } = await supabase
-      .from("workspace_members")
-      .select(`
-        *,
-        user:users(id, name, email, profile_image_url, online_status)
-      `)
-      .eq("workspace_id", workspaceId)
-      .order("created_at")
-
+  async createProject(project: Omit<Project, "id" | "created_at" | "updated_at">) {
+    const { data, error } = await supabase.from("projects").insert([project]).select().single()
     if (error) throw error
-    return data || []
+    return data as Project
   },
 
-  async addWorkspaceMember(member: Omit<WorkspaceMember, "id" | "created_at">): Promise<WorkspaceMember> {
-    const { data, error } = await supabase
-      .from("workspace_members")
-      .insert(member)
-      .select(`
-        *,
-        user:users(id, name, email, profile_image_url, online_status)
-      `)
-      .single()
-
+  async updateProject(id: string, updates: Partial<Project>) {
+    const { data, error } = await supabase.from("projects").update(updates).eq("id", id).select().single()
     if (error) throw error
-    return data
+    return data as Project
   },
 
-  async removeWorkspaceMember(workspaceId: string, userId: string): Promise<void> {
-    const { error } = await supabase
-      .from("workspace_members")
-      .delete()
-      .eq("workspace_id", workspaceId)
-      .eq("user_id", userId)
-
+  async deleteProject(id: string) {
+    const { error } = await supabase.from("projects").delete().eq("id", id)
     if (error) throw error
   },
 
-  // Project Members
-  async getProjectMembers(projectId: string): Promise<ProjectMember[]> {
+  async getProjectMembers(projectId: string) {
     const { data, error } = await supabase
       .from("project_members")
       .select(`
         *,
-        user:users(id, name, email, profile_image_url, online_status)
+        user:users(*)
       `)
       .eq("project_id", projectId)
-      .order("created_at")
-
     if (error) throw error
-    return data || []
+    return data as ProjectMember[]
   },
 
-  async addProjectMember(member: Omit<ProjectMember, "id" | "created_at">): Promise<ProjectMember> {
-    const { data, error } = await supabase
-      .from("project_members")
-      .insert(member)
-      .select(`
-        *,
-        user:users(id, name, email, profile_image_url, online_status)
-      `)
-      .single()
+  // File upload
+  async uploadAvatar(file: File, userId: string) {
+    const fileExt = file.name.split(".").pop()
+    const fileName = `${userId}-${Math.random()}.${fileExt}`
+    const filePath = `avatars/${fileName}`
 
-    if (error) throw error
-    return data
-  },
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file)
 
-  async removeProjectMember(projectId: string, userId: string): Promise<void> {
-    const { error } = await supabase.from("project_members").delete().eq("project_id", projectId).eq("user_id", userId)
+    if (uploadError) throw uploadError
 
-    if (error) throw error
+    const { data } = supabase.storage.from("avatars").getPublicUrl(filePath)
+    return data.publicUrl
   },
 }

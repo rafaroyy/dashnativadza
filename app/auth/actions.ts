@@ -1,43 +1,46 @@
 "use server"
-
 import { redirect } from "next/navigation"
-import { revalidatePath } from "next/cache"
 import { cookies } from "next/headers"
-import { dbOperations } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
-export async function loginAction(formData: FormData) {
-  const email = (formData.get("email") as string)?.trim().toLowerCase()
-  const password = (formData.get("password") as string) ?? ""
+export async function signIn(formData: FormData) {
+  const email = formData.get("email") as string
+  const password = formData.get("password") as string
 
   if (!email || !password) {
-    redirect("/login?error=Preencha%20todos%20os%20campos")
+    return { error: "Email e senha são obrigatórios" }
   }
 
-  // Consulta direta à tabela users
-  const user = await dbOperations.getUserByEmail(email)
+  const supabase = createClient()
 
-  if (!user || user.password !== password) {
-    redirect("/login?error=Credenciais%20inv%C3%A1lidas")
+  // Buscar usuário na tabela users
+  const { data: user, error } = await supabase.from("users").select("*").eq("email", email).single()
+
+  if (error || !user) {
+    return { error: "Credenciais inválidas" }
   }
 
-  // Salvamos sessão em cookie
+  // Verificar senha (em produção, use hash)
+  if (user.password !== password) {
+    return { error: "Credenciais inválidas" }
+  }
+
+  // Criar sessão via cookie
   const cookieStore = cookies()
-  cookieStore.set(
-    "user_session",
-    JSON.stringify({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    }),
-    {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 dias
-    },
-  )
+  const userData = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  }
 
-  revalidatePath("/dashboard")
+  cookieStore.set("user_session", JSON.stringify(userData), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  })
+
   redirect("/dashboard")
 }
 

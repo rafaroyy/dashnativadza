@@ -27,6 +27,7 @@
     "@radix-ui/react-slot": "latest",
     "@radix-ui/react-switch": "latest",
     "@radix-ui/react-tabs": "latest",
+    "@radix-ui/react-toast": "latest",
     "@reduxjs/toolkit": "latest",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
@@ -63,13 +64,11 @@
     "redux": "latest",
     "redux-actions": "latest",
     "redux-logger": "latest",
-    "sonner": "latest",
     "styled-components": "latest",
     "supertest": "latest",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "validator": "latest",
-    "zod": "latest"
+    "validator": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

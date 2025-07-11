@@ -40,37 +40,12 @@ export async function getUserFromSession() {
   }
 }
 
-/**
- * Compat helper – returns the authenticated user (or null).
- * Required by other parts of the codebase.
- */
 export async function getUser() {
   return getUserFromSession()
 }
 
-// Operações de banco de dados
-export const dbOperations = {
-  async getUserByEmail(email: string) {
-    const supabase = createClient()
-    const { data, error } = await supabase.from("users").select("*").eq("email", email).single()
-
-    if (error) {
-      console.error("Erro ao buscar usuário por email:", error)
-      return null
-    }
-
-    return data
-  },
-
-  async getUserById(id: string) {
-    const supabase = createClient()
-    const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
-
-    if (error) {
-      console.error("Erro ao buscar usuário:", error)
-      return null
-    }
-
-    return data
-  },
+export async function getSession() {
+  const cookieStore = cookies()
+  const userSession = cookieStore.get("user_session")
+  return userSession ? { user: await getUserFromSession() } : null
 }
