@@ -9,6 +9,7 @@ import { Plus, Mail, Edit, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
 
+// Force dynamic rendering
 export const dynamic = "force-dynamic"
 
 interface User {
@@ -24,19 +25,31 @@ interface User {
 export default function TeamsPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const { toast } = useToast()
-  const supabase = createClient()
+
+  // Ensure component is mounted before making API calls
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
+    if (!mounted) return
+
     const loadUsers = async () => {
       try {
         setLoading(true)
+        const supabase = createClient()
         const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
 
-        if (error) throw error
+        if (error) {
+          console.error("Error loading users:", error)
+          return
+        }
+
         setUsers(data || [])
       } catch (error) {
-        console.error("Erro ao carregar usuários:", error)
+        console.error("Error loading users:", error)
         toast({
           title: "Erro",
           description: "Não foi possível carregar os membros da equipe",
@@ -48,10 +61,11 @@ export default function TeamsPage() {
     }
 
     loadUsers()
-  }, [supabase, toast])
+  }, [mounted, toast])
 
   const handleDeleteUser = async (userId: string) => {
     try {
+      const supabase = createClient()
       const { error } = await supabase.from("users").delete().eq("id", userId)
 
       if (error) throw error
@@ -80,7 +94,7 @@ export default function TeamsPage() {
       .slice(0, 2)
   }
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
