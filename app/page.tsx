@@ -1,23 +1,15 @@
 "use client"
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+export const dynamic = "force-dynamic"
+
+import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DigitalzLogo } from "@/components/ui/digitalz-logo"
 import { CheckCircle, Users, Zap, Shield } from "lucide-react"
 
 export default function HomePage() {
-  const router = useRouter()
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const user = localStorage.getItem("digitalz_user")
-      if (user) {
-        router.push("/dashboard")
-      }
-    }
-  }, [router])
+  redirect("/dashboard")
 
   const features = [
     {
@@ -48,10 +40,10 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <DigitalzLogo />
           <div className="flex gap-4">
-            <Button variant="ghost" onClick={() => router.push("/login")}>
+            <Button variant="ghost" onClick={() => redirect("/dashboard")}>
               Entrar
             </Button>
-            <Button onClick={() => router.push("/login")}>Começar Agora</Button>
+            <Button onClick={() => redirect("/dashboard")}>Começar Agora</Button>
           </div>
         </div>
       </header>
@@ -62,7 +54,7 @@ export default function HomePage() {
           A plataforma completa para organizar tarefas, colaborar com equipes e acelerar a entrega de projetos com
           eficiência máxima.
         </p>
-        <Button size="lg" onClick={() => router.push("/login")} className="gradient-bg">
+        <Button size="lg" onClick={() => redirect("/dashboard")} className="gradient-bg">
           Começar Gratuitamente
         </Button>
       </section>
@@ -90,7 +82,7 @@ export default function HomePage() {
           <p className="text-xl mb-8 opacity-90">
             Junte-se a milhares de equipes que já transformaram sua forma de trabalhar
           </p>
-          <Button size="lg" variant="secondary" onClick={() => router.push("/login")}>
+          <Button size="lg" variant="secondary" onClick={() => redirect("/dashboard")}>
             Começar Agora - É Grátis
           </Button>
         </div>

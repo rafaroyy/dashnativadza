@@ -1,348 +1,265 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Users, CheckCircle, Clock, AlertTriangle, Target, TrendingUp } from "lucide-react"
-import { dbOperations, type Project, type Task, type User } from "@/lib/supabase"
+import { Calendar, CheckCircle, Clock, AlertCircle, Edit, Trash2 } from "lucide-react"
+import { dbOperations, type Project, type Task, type ProjectMember } from "@/lib/supabase"
 
 interface ProjectDetailsModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   project: Project
+  onEdit?: (project: Project) => void
+  onDelete?: (projectId: string) => void
 }
 
-export function ProjectDetailsModal({ open, onOpenChange, project }: ProjectDetailsModalProps) {
+export function ProjectDetailsModal({ open, onOpenChange, project, onEdit, onDelete }: ProjectDetailsModalProps) {
   const [tasks, setTasks] = useState<Task[]>([])
-  const [users, setUsers] = useState<User[]>([])
+  const [members, setMembers] = useState<ProjectMember[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (open && project.id) {
-      fetchProjectData()
+      loadProjectData()
     }
   }, [open, project.id])
 
-  const fetchProjectData = async () => {
+  const loadProjectData = async () => {
+    setLoading(true)
     try {
-      setError(null)
-      setLoading(true)
-
-      const [allTasks, allUsers] = await Promise.all([dbOperations.getTasks(), dbOperations.getUsers()])
-
-      // Filter tasks for this project
-      const projectTasks = allTasks.filter((task) => task.project_id === project.id)
-      setTasks(projectTasks)
-      setUsers(allUsers)
-    } catch (error: any) {
-      console.error("Error fetching project data:", error)
-      setError("Erro ao carregar dados do projeto")
+      const [tasksData, membersData] = await Promise.all([
+        dbOperations.getTasksByProject(project.id),
+        dbOperations.getProjectMembers(project.id),
+      ])
+      setTasks(tasksData)
+      setMembers(membersData)
+    } catch (error) {
+      console.error("Error loading project data:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  const getProjectStats = () => {
-    const totalTasks = tasks.length
-    const completedTasks = tasks.filter((task) => task.status === "completed").length
-    const inProgressTasks = tasks.filter((task) => task.status === "in-progress").length
-    const todoTasks = tasks.filter((task) => task.status === "todo").length
-    const overdueTasks = tasks.filter((task) => {
-      if (!task.due_date || task.completed) return false
-      return new Date(task.due_date) < new Date()
-    }).length
-
-    const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
-
-    return {
-      totalTasks,
-      completedTasks,
-      inProgressTasks,
-      todoTasks,
-      overdueTasks,
-      progress,
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      todo: { label: "A Fazer", variant: "secondary" as const },
+      in_progress: { label: "Em Progresso", variant: "default" as const },
+      done: { label: "Concluído", variant: "default" as const },
     }
+    return statusConfig[status as keyof typeof statusConfig] || statusConfig.todo
   }
 
-  const getTasksByUser = () => {
-    const tasksByUser = new Map<string, { user: User; tasks: Task[] }>()
-
-    tasks.forEach((task) => {
-      if (task.assigned_to_user) {
-        const userId = task.assigned_to_user.id
-        if (!tasksByUser.has(userId)) {
-          tasksByUser.set(userId, {
-            user: task.assigned_to_user,
-            tasks: [],
-          })
-        }
-        tasksByUser.get(userId)!.tasks.push(task)
-      }
-    })
-
-    return Array.from(tasksByUser.values())
-  }
-
-  const getRecentTasks = () => {
-    return tasks.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5)
-  }
-
-  const stats = getProjectStats()
-  const tasksByUser = getTasksByUser()
-  const recentTasks = getRecentTasks()
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-500"
-      case "in-progress":
-        return "bg-blue-500"
-      case "todo":
-        return "bg-gray-500"
-      default:
-        return "bg-gray-500"
+  const getPriorityBadge = (priority: string) => {
+    const priorityConfig = {
+      low: { label: "Baixa", variant: "secondary" as const },
+      medium: { label: "Média", variant: "default" as const },
+      high: { label: "Alta", variant: "destructive" as const },
     }
+    return priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.medium
   }
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "Concluído"
-      case "in-progress":
-        return "Em Progresso"
-      case "todo":
-        return "A Fazer"
-      default:
-        return status
-    }
+  const getTaskStats = () => {
+    const total = tasks.length
+    const completed = tasks.filter((task) => task.status === "done").length
+    const inProgress = tasks.filter((task) => task.status === "in_progress").length
+    const todo = tasks.filter((task) => task.status === "todo").length
+
+    return { total, completed, inProgress, todo }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="h-4 w-4" />
-      case "in-progress":
-        return <Clock className="h-4 w-4" />
-      case "todo":
-        return <AlertTriangle className="h-4 w-4" />
-      default:
-        return <Clock className="h-4 w-4" />
-    }
-  }
+  const stats = getTaskStats()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <Target className="h-6 w-6 text-primary" />
-            {project.title}
-          </DialogTitle>
-          <DialogDescription>{project.description}</DialogDescription>
+      <DialogContent className="sm:max-w-[700px] h-[600px] flex flex-col p-0">
+        <DialogHeader className="px-6 py-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: project.color }} />
+              <DialogTitle className="text-xl">{project.name}</DialogTitle>
+              <Badge variant="outline">{project.status}</Badge>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm" onClick={() => onEdit?.(project)}>
+                <Edit className="h-4 w-4 mr-1" />
+                Editar
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => onDelete?.(project.id)}>
+                <Trash2 className="h-4 w-4 mr-1" />
+                Excluir
+              </Button>
+            </div>
+          </div>
+          {project.description && <p className="text-sm text-muted-foreground mt-2">{project.description}</p>}
         </DialogHeader>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">{error}</div>}
-
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          </div>
-        ) : (
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+        <div className="flex-1 overflow-hidden">
+          <Tabs defaultValue="overview" className="h-full flex flex-col">
+            <TabsList className="mx-6 mt-4">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              <TabsTrigger value="tasks">Tarefas</TabsTrigger>
-              <TabsTrigger value="team">Equipe</TabsTrigger>
+              <TabsTrigger value="tasks">Tarefas ({tasks.length})</TabsTrigger>
+              <TabsTrigger value="members">Membros ({members.length})</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Total de Tarefas</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalTasks}</div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Concluídas</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{stats.completedTasks}</div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Em Progresso</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">{stats.inProgressTasks}</div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Atrasadas</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{stats.overdueTasks}</div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Progresso do Projeto
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Progresso</span>
-                      <span>{stats.progress}%</span>
-                    </div>
-                    <Progress value={stats.progress} className="h-2" />
-                    <div className="text-xs text-muted-foreground">
-                      {stats.completedTasks} de {stats.totalTasks} tarefas concluídas
-                    </div>
+            <TabsContent value="overview" className="flex-1 px-6 pb-6">
+              <div className="space-y-6">
+                {/* Project Stats */}
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold">{stats.total}</div>
+                    <div className="text-sm text-muted-foreground">Total</div>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{stats.todo}</div>
+                    <div className="text-sm text-muted-foreground">A Fazer</div>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-yellow-600">{stats.inProgress}</div>
+                    <div className="text-sm text-muted-foreground">Em Progresso</div>
+                  </div>
+                  <div className="text-center p-4 bg-muted rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+                    <div className="text-sm text-muted-foreground">Concluído</div>
+                  </div>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tarefas Recentes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-48">
-                    <div className="space-y-2">
-                      {recentTasks.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">Nenhuma tarefa encontrada</p>
-                      ) : (
-                        recentTasks.map((task) => (
-                          <div key={task.id} className="flex items-center gap-3 p-2 rounded-lg border">
-                            <Badge className={getStatusColor(task.status)} variant="secondary">
-                              {getStatusIcon(task.status)}
-                            </Badge>
-                            <div className="flex-1">
-                              <p className="font-medium text-sm">{task.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {task.assigned_to_user?.name || "Não atribuído"}
-                              </p>
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {new Date(task.created_at).toLocaleDateString("pt-BR")}
-                            </div>
+                {/* Recent Tasks */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Tarefas Recentes</h3>
+                  <div className="space-y-2">
+                    {tasks.slice(0, 5).map((task) => (
+                      <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
+                            {task.status === "done" ? (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            ) : task.status === "in_progress" ? (
+                              <Clock className="h-4 w-4 text-yellow-600" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4 text-blue-600" />
+                            )}
+                            <span className="font-medium">{task.title}</span>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge {...getPriorityBadge(task.priority)}>{getPriorityBadge(task.priority).label}</Badge>
+                          {task.assignee && (
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={task.assignee.profile_image_url || "/placeholder.svg"} />
+                              <AvatarFallback className="text-xs">
+                                {task.assignee.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </TabsContent>
 
-            <TabsContent value="tasks" className="space-y-4">
-              <ScrollArea className="h-96">
-                <div className="space-y-3">
-                  {tasks.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">
-                      Nenhuma tarefa encontrada para este projeto
-                    </p>
-                  ) : (
-                    tasks.map((task) => (
-                      <Card key={task.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium">{task.title}</h4>
+            <TabsContent value="tasks" className="flex-1">
+              <ScrollArea className="h-full px-6 pb-6">
+                {loading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : tasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Nenhuma tarefa encontrada</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {tasks.map((task) => (
+                      <div key={task.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{task.title}</h4>
+                            {task.description && (
                               <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
-                              <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  {task.assigned_to_user?.name || "Não atribuído"}
+                            )}
+                            <div className="flex items-center space-x-4 mt-3">
+                              <Badge {...getStatusBadge(task.status)}>{getStatusBadge(task.status).label}</Badge>
+                              <Badge {...getPriorityBadge(task.priority)}>
+                                {getPriorityBadge(task.priority).label}
+                              </Badge>
+                              {task.due_date && (
+                                <div className="flex items-center text-sm text-muted-foreground">
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  {new Date(task.due_date).toLocaleDateString("pt-BR")}
                                 </div>
-                                {task.due_date && (
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {new Date(task.due_date).toLocaleDateString("pt-BR")}
-                                  </div>
-                                )}
-                              </div>
+                              )}
                             </div>
-                            <Badge className={getStatusColor(task.status)} variant="secondary">
-                              {getStatusText(task.status)}
-                            </Badge>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
+                          {task.assignee && (
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={task.assignee.profile_image_url || "/placeholder.svg"} />
+                              <AvatarFallback>
+                                {task.assignee.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="team" className="space-y-4">
-              <ScrollArea className="h-96">
-                <div className="space-y-3">
-                  {tasksByUser.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">Nenhum membro da equipe encontrado</p>
-                  ) : (
-                    tasksByUser.map(({ user, tasks: userTasks }) => {
-                      const completedCount = userTasks.filter((t) => t.status === "completed").length
-                      const totalCount = userTasks.length
-                      const userProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
-
-                      return (
-                        <Card key={user.id}>
-                          <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={user.profile_image_url || "/placeholder.svg"} alt={user.name} />
-                                <AvatarFallback>
-                                  {user.name
-                                    .split(" ")
-                                    .map((n) => n[0])
-                                    .join("")}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <h4 className="font-medium">{user.name}</h4>
-                                <p className="text-sm text-muted-foreground">{user.email}</p>
-                                <div className="mt-2">
-                                  <div className="flex justify-between text-xs mb-1">
-                                    <span>Progresso</span>
-                                    <span>{userProgress}%</span>
-                                  </div>
-                                  <Progress value={userProgress} className="h-1" />
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {completedCount} de {totalCount} tarefas concluídas
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })
-                  )}
-                </div>
+            <TabsContent value="members" className="flex-1">
+              <ScrollArea className="h-full px-6 pb-6">
+                {loading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : members.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Nenhum membro encontrado</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {members.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={member.user?.profile_image_url || "/placeholder.svg"} />
+                            <AvatarFallback>
+                              {member.user?.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{member.user?.name}</p>
+                            <p className="text-sm text-muted-foreground">{member.user?.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="outline">{member.role}</Badge>
+                          {member.user?.online_status && <div className="w-2 h-2 bg-green-500 rounded-full"></div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </ScrollArea>
             </TabsContent>
           </Tabs>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   )

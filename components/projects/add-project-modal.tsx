@@ -2,134 +2,203 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Plus } from "lucide-react"
+import { dbOperations, type Workspace } from "@/lib/supabase"
 
 interface AddProjectModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onProjectAdded: (project: any) => void
+  onProjectAdded?: () => void
 }
 
-export function AddProjectModal({ open, onOpenChange, onProjectAdded }: AddProjectModalProps) {
+export function AddProjectModal({ onProjectAdded }: AddProjectModalProps) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    dueDate: "",
-    teamSize: "1",
-    totalTasks: "10",
+    workspace_id: "",
+    status: "active",
+    color: "#3b82f6",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    const newProject = {
-      name: formData.name,
-      description: formData.description,
-      dueDate: formData.dueDate,
-      teamSize: Number.parseInt(formData.teamSize) || 1,
-      totalTasks: Number.parseInt(formData.totalTasks) || 10,
+  useEffect(() => {
+    if (open) {
+      loadWorkspaces()
     }
+  }, [open])
 
-    onProjectAdded(newProject)
-    onOpenChange(false)
-
-    setFormData({
-      name: "",
-      description: "",
-      dueDate: "",
-      teamSize: "1",
-      totalTasks: "10",
-    })
+  const loadWorkspaces = async () => {
+    try {
+      const workspacesData = await dbOperations.getWorkspaces()
+      setWorkspaces(workspacesData)
+    } catch (error) {
+      console.error("Error loading workspaces:", error)
+    }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.name.trim() || !formData.workspace_id) return
+
+    setLoading(true)
+    try {
+      const projectData = {
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        workspace_id: formData.workspace_id,
+        status: formData.status,
+        color: formData.color,
+      }
+
+      await dbOperations.createProject(projectData)
+
+      // Reset form
+      setFormData({
+        name: "",
+        description: "",
+        workspace_id: "",
+        status: "active",
+        color: "#3b82f6",
+      })
+
+      setOpen(false)
+      onProjectAdded?.()
+    } catch (error) {
+      console.error("Error creating project:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const statusOptions = [
+    { value: "active", label: "Ativo" },
+    { value: "inactive", label: "Inativo" },
+    { value: "completed", label: "Concluído" },
+  ]
+
+  const colorOptions = [
+    { value: "#3b82f6", label: "Azul", color: "#3b82f6" },
+    { value: "#10b981", label: "Verde", color: "#10b981" },
+    { value: "#f59e0b", label: "Amarelo", color: "#f59e0b" },
+    { value: "#ef4444", label: "Vermelho", color: "#ef4444" },
+    { value: "#8b5cf6", label: "Roxo", color: "#8b5cf6" },
+    { value: "#06b6d4", label: "Ciano", color: "#06b6d4" },
+  ]
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Projeto
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Novo Projeto</DialogTitle>
-          <DialogDescription>Crie um novo projeto para sua equipe</DialogDescription>
+          <DialogTitle>Criar Novo Projeto</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Nome *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Digite o nome do projeto"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Descrição</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Descreva o projeto (opcional)"
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Workspace *</Label>
+            <Select
+              value={formData.workspace_id}
+              onValueChange={(value) => setFormData({ ...formData, workspace_id: value })}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um workspace" />
+              </SelectTrigger>
+              <SelectContent>
+                {workspaces.length === 0 ? (
+                  <SelectItem value="no-workspaces" disabled>
+                    Nenhum workspace disponível
+                  </SelectItem>
+                ) : (
+                  workspaces.map((workspace) => (
+                    <SelectItem key={workspace.id} value={workspace.id}>
+                      {workspace.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome do Projeto</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Digite o nome do projeto"
-                required
-              />
+              <Label>Status</Label>
+              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="Descreva o projeto"
-                rows={3}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dueDate">Data de Entrega</Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, dueDate: e.target.value }))}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="totalTasks">Total de Tarefas</Label>
-                <Input
-                  id="totalTasks"
-                  type="number"
-                  min="1"
-                  value={formData.totalTasks}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, totalTasks: e.target.value }))}
-                  placeholder="10"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="teamSize">Tamanho da Equipe</Label>
-              <Input
-                id="teamSize"
-                type="number"
-                min="1"
-                value={formData.teamSize}
-                onChange={(e) => setFormData((prev) => ({ ...prev, teamSize: e.target.value }))}
-                placeholder="1"
-              />
+              <Label>Cor</Label>
+              <Select value={formData.color} onValueChange={(value) => setFormData({ ...formData, color: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma cor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {colorOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: option.color }} />
+                        <span>{option.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90">
-              Criar Projeto
+            <Button type="submit" disabled={loading || !formData.name.trim() || !formData.workspace_id}>
+              {loading ? "Criando..." : "Criar Projeto"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

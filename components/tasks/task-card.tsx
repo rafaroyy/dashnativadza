@@ -1,228 +1,88 @@
 "use client"
-import { useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { EditTaskModal } from "./edit-task-modal"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Calendar, User, MoreVertical, Edit, Trash2, CheckCircle, Clock, AlertTriangle } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Calendar, Edit, Trash2 } from "lucide-react"
 import type { Task } from "@/lib/supabase"
+import { getInitials } from "@/lib/utils"
 
 interface TaskCardProps {
   task: Task
-  onUpdate: (task: Task) => void
-  onDelete: (taskId: string) => void
+  onEdit?: (task: Task) => void
+  onDelete?: (taskId: string) => void
+  onStatusChange?: (taskId: string, status: string) => void
 }
 
-export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
-  const [showEditModal, setShowEditModal] = useState(false)
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-500"
-      case "in-progress":
-        return "bg-blue-500"
-      case "todo":
-        return "bg-gray-500"
-      default:
-        return "bg-gray-500"
+export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      todo: { label: "A Fazer", variant: "outline" as const },
+      in_progress: { label: "Em Progresso", variant: "secondary" as const },
+      done: { label: "Concluído", variant: "default" as const },
     }
+    return statusConfig[status as keyof typeof statusConfig] || statusConfig.todo
   }
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "Concluído"
-      case "in-progress":
-        return "Em Progresso"
-      case "todo":
-        return "A Fazer"
-      default:
-        return status
+  const getPriorityBadge = (priority: string) => {
+    const priorityConfig = {
+      low: { label: "Baixa", variant: "secondary" as const },
+      medium: { label: "Média", variant: "default" as const },
+      high: { label: "Alta", variant: "destructive" as const },
     }
+    return priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.medium
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="h-4 w-4" />
-      case "in-progress":
-        return <Clock className="h-4 w-4" />
-      case "todo":
-        return <AlertTriangle className="h-4 w-4" />
-      default:
-        return <Clock className="h-4 w-4" />
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-red-500"
-      case "high":
-        return "bg-orange-500"
-      case "normal":
-        return "bg-blue-500"
-      case "low":
-        return "bg-gray-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
-
-  const getPriorityText = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "Urgente"
-      case "high":
-        return "Alta"
-      case "normal":
-        return "Normal"
-      case "low":
-        return "Baixa"
-      default:
-        return priority || "Normal"
-    }
-  }
-
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
     if (!dateString) return "Sem prazo"
-    return new Date(dateString).toLocaleDateString("pt-BR")
-  }
-
-  const isOverdue = (dateString: string) => {
-    if (!dateString || task.completed) return false
-    return new Date(dateString) < new Date()
-  }
-
-  const handleDelete = () => {
-    if (confirm("Tem certeza que deseja excluir esta tarefa?")) {
-      onDelete(task.id)
-    }
-  }
-
-  const handleStatusToggle = () => {
-    const newStatus = task.status === "completed" ? "todo" : "completed"
-    const updatedTask = {
-      ...task,
-      status: newStatus,
-      completed: newStatus === "completed",
-    }
-    onUpdate(updatedTask)
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
   }
 
   return (
-    <>
-      <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-3">
-                <h3 className="text-lg font-semibold">{task.title}</h3>
-                <Badge className={getStatusColor(task.status)} variant="secondary">
-                  <div className="flex items-center gap-1">
-                    {getStatusIcon(task.status)}
-                    {getStatusText(task.status)}
-                  </div>
-                </Badge>
-                <Badge className={getPriorityColor(task.priority)} variant="secondary">
-                  {getPriorityText(task.priority)}
-                </Badge>
-              </div>
-
-              <p className="text-muted-foreground mb-4 line-clamp-2">{task.description}</p>
-
-              <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  <span className={isOverdue(task.due_date) ? "text-red-600 font-medium" : ""}>
-                    {formatDate(task.due_date)}
-                    {isOverdue(task.due_date) && " (Atrasado)"}
-                  </span>
-                </div>
-
-                {task.assigned_to_user && (
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span>{task.assigned_to_user.name}</span>
-                  </div>
-                )}
-
-                {task.project && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs bg-muted px-2 py-1 rounded">{task.project.title}</span>
-                  </div>
-                )}
-
-                {task.space && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: task.space.space_color }} />
-                    <span>{task.space.name}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 ml-4">
-              {task.assigned_to_user && (
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={task.assigned_to_user.profile_image_url || "/placeholder.svg"}
-                    alt={task.assigned_to_user.name}
-                  />
-                  <AvatarFallback className="text-xs">
-                    {task.assigned_to_user.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleStatusToggle}>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    {task.status === "completed" ? "Marcar como Pendente" : "Marcar como Concluída"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowEditModal(true)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDelete} className="text-red-600">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+    <Card className="bg-white dark:bg-gray-950 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+      <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex-1">
+          <h3 className="font-semibold">{task.title}</h3>
+          {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{task.description}</p>}
+          <div className="flex items-center gap-2 mt-3">
+            <Badge {...getStatusBadge(task.status)}>{getStatusBadge(task.status).label}</Badge>
+            <Badge {...getPriorityBadge(task.priority)}>{getPriorityBadge(task.priority).label}</Badge>
           </div>
-
-          <div className="flex items-center justify-between mt-4 pt-4 border-t">
-            <div className="text-xs text-muted-foreground">
-              Criada em {new Date(task.created_at).toLocaleDateString("pt-BR")}
+        </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+          {task.users && (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={task.users.avatar_url || ""} />
+                <AvatarFallback>{getInitials(task.users.name || "")}</AvatarFallback>
+              </Avatar>
+              <span className="text-sm text-muted-foreground">{task.users.name}</span>
             </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleStatusToggle} className="bg-transparent">
-                {task.status === "completed" ? "Reabrir" : "Concluir"}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)} className="bg-transparent">
-                Editar
-              </Button>
-            </div>
+          )}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            <span>Prazo: {formatDate(task.due_date)}</span>
           </div>
-        </CardContent>
-      </Card>
-
-      <EditTaskModal open={showEditModal} onOpenChange={setShowEditModal} task={task} onTaskUpdated={onUpdate} />
-    </>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => onEdit?.(task)} className="h-8 w-8">
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete?.(task.id)}
+              className="h-8 w-8 text-red-500 hover:text-red-600"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
