@@ -153,3 +153,5 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask, spaces }: Cr
     </Dialog>
   )
 }
+
+export default CreateTaskModal

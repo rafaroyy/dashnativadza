@@ -15,10 +15,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-digitalz-light-secondary dark:bg-digitalz-dark-secondary">
+    <div className="flex min-h-screen w-full bg-[hsl(var(--digitalz-bg-secondary))]">
       <DashboardSidebar />
       <div className="flex flex-1 flex-col">
-        <Header />
+        <Header user={user} />
         <main className="flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>

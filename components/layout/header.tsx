@@ -1,26 +1,49 @@
-"use client"
-
-import { Bell, Search, User } from "lucide-react"
+import type { User } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { CircleUser, LogOut } from "lucide-react"
+import { signOut } from "@/app/auth/actions"
 
-export function Header() {
+interface HeaderProps {
+  user: User | null
+}
+
+export function Header({ user }: HeaderProps) {
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-white px-6">
-      <div className="flex items-center space-x-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <Input placeholder="Buscar tarefas..." className="w-64 pl-10" />
-        </div>
-      </div>
-
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon">
-          <Bell className="h-5 w-5" />
-        </Button>
-        <Button variant="ghost" size="icon">
-          <User className="h-5 w-5" />
-        </Button>
+    <header className="flex h-16 items-center justify-between border-b bg-[hsl(var(--digitalz-bg-primary))] px-6">
+      <div />
+      <div className="flex items-center gap-4">
+        <span className="text-sm text-muted-foreground">{user?.email}</span>
+        <form action={signOut}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary" size="icon" className="rounded-full">
+                <CircleUser className="h-5 w-5" />
+                <span className="sr-only">Toggle user menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Configurações</DropdownMenuItem>
+              <DropdownMenuItem>Suporte</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <button type="submit" className="w-full text-left flex items-center">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sair
+                </button>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </form>
       </div>
     </header>
   )

@@ -11,7 +11,12 @@ import { CreateTaskModal } from "@/components/tasks/create-task-modal"
 import { useToast } from "@/hooks/use-toast"
 
 // Tipagens
-interface Task {
+type Space = {
+  id: string
+  name: string
+}
+
+type Task = {
   id: string
   title: string
   description: string | null
@@ -19,14 +24,10 @@ interface Task {
   priority: "low" | "medium" | "high"
   created_at: string
   space_id: string
+  spaces: { name: string } | null // Relação com spaces
 }
 
-interface Space {
-  id: string
-  name: string
-}
-
-interface TaskFormData {
+type TaskFormData = {
   title: string
   description: string
   status: "todo" | "in_progress" | "completed"
@@ -42,14 +43,13 @@ interface TasksClientProps {
 export function TasksClient({ initialTasks, initialSpaces }: TasksClientProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [spaces] = useState<Space[]>(initialSpaces)
-  const [loading, setLoading] = useState(false) // Apenas para ações, o carregamento inicial é no servidor
   const [searchTerm, setSearchTerm] = useState("")
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const { toast } = useToast()
   const supabase = createClient()
 
   const handleCreateTask = async (taskData: TaskFormData) => {
-    const { data, error } = await supabase.from("tasks").insert([taskData]).select().single()
+    const { data, error } = await supabase.from("tasks").insert([taskData]).select("*, spaces (name)").single()
 
     if (error) {
       toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" })
@@ -85,10 +85,7 @@ export function TasksClient({ initialTasks, initialSpaces }: TasksClientProps) {
           <h1 className="text-2xl font-bold">Tarefas</h1>
           <p className="text-muted-foreground">Gerencie todas as suas tarefas aqui.</p>
         </div>
-        <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="bg-digitalz-cyan hover:bg-digitalz-cyan-light text-black dark:text-white"
-        >
+        <Button onClick={() => setIsCreateModalOpen(true)} className="bg-digitalz-cyan hover:bg-digitalz-cyan-light">
           <Plus className="mr-2 h-4 w-4" />
           Nova Tarefa
         </Button>
@@ -110,7 +107,7 @@ export function TasksClient({ initialTasks, initialSpaces }: TasksClientProps) {
         </Button>
       </div>
 
-      {tasks.length === 0 && !loading ? (
+      {tasks.length === 0 ? (
         <div className="text-center py-10 border-2 border-dashed rounded-lg">
           <p className="text-muted-foreground">Nenhuma tarefa encontrada.</p>
         </div>
@@ -128,7 +125,10 @@ export function TasksClient({ initialTasks, initialSpaces }: TasksClientProps) {
               <CardContent>
                 <div className="flex justify-between items-center text-sm text-muted-foreground">
                   <span>{getStatusLabel(task.status)}</span>
-                  <span>Criada em: {new Date(task.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-4">
+                    <span>{task.spaces?.name || "Sem espaço"}</span>
+                    <span>Criada em: {new Date(task.created_at).toLocaleDateString()}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
