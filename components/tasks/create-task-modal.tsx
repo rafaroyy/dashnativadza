@@ -48,12 +48,12 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask, spaces }: Cr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.title.trim()) {
-      toast({ title: "Erro de Validação", description: "O título é obrigatório.", variant: "destructive" })
-      return
-    }
     if (!formData.space_id) {
       toast({ title: "Erro de Validação", description: "É obrigatório selecionar um espaço.", variant: "destructive" })
+      return
+    }
+    if (!formData.title.trim()) {
+      toast({ title: "Erro de Validação", description: "O título é obrigatório.", variant: "destructive" })
       return
     }
 
@@ -63,6 +63,7 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask, spaces }: Cr
       setFormData({ title: "", description: "", status: "todo", priority: "medium", space_id: "" })
       onOpenChange(false)
     } catch (error) {
+      // O erro já é tratado no componente pai, não precisa de toast aqui.
       console.error("Falha ao criar tarefa no modal:", error)
     } finally {
       setLoading(false)
@@ -152,5 +153,3 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask, spaces }: Cr
     </Dialog>
   )
 }
-
-export default CreateTaskModal
