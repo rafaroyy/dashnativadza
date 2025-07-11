@@ -1,90 +1,80 @@
 "use client"
 
 import { useState, useEffect } from "react"
-
-export const dynamic = "force-dynamic"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { User, Bell, Shield, Globe } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
-import { User, Bell, Globe, Palette } from "lucide-react"
 
-interface UserSettings {
+export const dynamic = "force-dynamic"
+
+interface UserProfile {
   id: string
   name: string
   email: string
+  avatar_url?: string
   notifications_enabled: boolean
   language: string
   timezone: string
-  theme: string
 }
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<UserSettings | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
   const supabase = createClient()
 
   useEffect(() => {
-    loadUserSettings()
-  }, [])
+    const loadProfile = async () => {
+      try {
+        setLoading(true)
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-  const loadUserSettings = async () => {
-    try {
-      setLoading(true)
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+        if (user) {
+          const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single()
 
-      if (!user) return
-
-      const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single()
-
-      if (error) throw error
-
-      setSettings({
-        id: data.id,
-        name: data.name || "",
-        email: data.email || "",
-        notifications_enabled: data.notifications_enabled ?? true,
-        language: data.language || "pt-BR",
-        timezone: data.timezone || "America/Sao_Paulo",
-        theme: data.theme || "system",
-      })
-    } catch (error) {
-      console.error("Erro ao carregar configurações:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as configurações",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
+          if (error) throw error
+          setProfile(data)
+        }
+      } catch (error) {
+        console.error("Erro ao carregar perfil:", error)
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as configurações",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
     }
-  }
 
-  const handleSaveSettings = async () => {
-    if (!settings) return
+    loadProfile()
+  }, [supabase, toast])
+
+  const handleSaveProfile = async () => {
+    if (!profile) return
 
     try {
       setSaving(true)
       const { error } = await supabase
         .from("users")
         .update({
-          name: settings.name,
-          notifications_enabled: settings.notifications_enabled,
-          language: settings.language,
-          timezone: settings.timezone,
-          theme: settings.theme,
+          name: profile.name,
+          notifications_enabled: profile.notifications_enabled,
+          language: profile.language,
+          timezone: profile.timezone,
         })
-        .eq("id", settings.id)
+        .eq("id", profile.id)
 
       if (error) throw error
 
@@ -93,7 +83,7 @@ export default function SettingsPage() {
         description: "Configurações salvas com sucesso!",
       })
     } catch (error) {
-      console.error("Erro ao salvar configurações:", error)
+      console.error("Erro ao salvar perfil:", error)
       toast({
         title: "Erro",
         description: "Não foi possível salvar as configurações",
@@ -104,9 +94,13 @@ export default function SettingsPage() {
     }
   }
 
-  const updateSetting = (key: keyof UserSettings, value: any) => {
-    if (!settings) return
-    setSettings({ ...settings, [key]: value })
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
   }
 
   if (loading) {
@@ -125,7 +119,7 @@ export default function SettingsPage() {
     )
   }
 
-  if (!settings) {
+  if (!profile) {
     return (
       <div className="p-6">
         <Card>
@@ -155,19 +149,34 @@ export default function SettingsPage() {
             <CardDescription>Informações básicas da sua conta</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={profile.avatar_url || "/placeholder.svg"} alt={profile.name} />
+                <AvatarFallback>{getInitials(profile.name)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h3 className="font-medium">{profile.name}</h3>
+                <p className="text-sm text-muted-foreground">{profile.email}</p>
+                <Badge variant="secondary" className="mt-1">
+                  Usuário Ativo
+                </Badge>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid gap-4">
+              <div className="grid gap-2">
                 <Label htmlFor="name">Nome</Label>
                 <Input
                   id="name"
-                  value={settings.name}
-                  onChange={(e) => updateSetting("name", e.target.value)}
-                  placeholder="Seu nome"
+                  value={profile.name}
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" value={settings.email} disabled placeholder="Seu email" />
+                <Input id="email" value={profile.email} disabled className="bg-muted" />
               </div>
             </div>
           </CardContent>
@@ -186,87 +195,62 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Notificações por email</Label>
-                <p className="text-sm text-muted-foreground">Receba notificações sobre tarefas e projetos por email</p>
+                <p className="text-sm text-muted-foreground">Receba atualizações sobre tarefas e projetos</p>
               </div>
               <Switch
-                checked={settings.notifications_enabled}
-                onCheckedChange={(checked) => updateSetting("notifications_enabled", checked)}
+                checked={profile.notifications_enabled}
+                onCheckedChange={(checked) => setProfile({ ...profile, notifications_enabled: checked })}
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Localização */}
+        {/* Preferências */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Globe className="h-5 w-5" />
-              Localização
+              Preferências
             </CardTitle>
-            <CardDescription>Configure seu idioma e fuso horário</CardDescription>
+            <CardDescription>Configurações de idioma e fuso horário</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Idioma</Label>
-                <Select value={settings.language} onValueChange={(value) => updateSetting("language", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pt-BR">Português (Brasil)</SelectItem>
-                    <SelectItem value="en-US">English (US)</SelectItem>
-                    <SelectItem value="es-ES">Español</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Fuso Horário</Label>
-                <Select value={settings.timezone} onValueChange={(value) => updateSetting("timezone", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="America/Sao_Paulo">São Paulo (GMT-3)</SelectItem>
-                    <SelectItem value="America/New_York">New York (GMT-5)</SelectItem>
-                    <SelectItem value="Europe/London">London (GMT+0)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="language">Idioma</Label>
+              <Input
+                id="language"
+                value={profile.language || "pt-BR"}
+                onChange={(e) => setProfile({ ...profile, language: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="timezone">Fuso Horário</Label>
+              <Input
+                id="timezone"
+                value={profile.timezone || "America/Sao_Paulo"}
+                onChange={(e) => setProfile({ ...profile, timezone: e.target.value })}
+              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Aparência */}
+        {/* Segurança */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Palette className="h-5 w-5" />
-              Aparência
+              <Shield className="h-5 w-5" />
+              Segurança
             </CardTitle>
-            <CardDescription>Personalize a aparência da interface</CardDescription>
+            <CardDescription>Configurações de segurança da conta</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <Label>Tema</Label>
-              <Select value={settings.theme} onValueChange={(value) => updateSetting("theme", value)}>
-                <SelectTrigger className="w-full md:w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="light">Claro</SelectItem>
-                  <SelectItem value="dark">Escuro</SelectItem>
-                  <SelectItem value="system">Sistema</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Button variant="outline">Alterar Senha</Button>
           </CardContent>
         </Card>
 
-        <Separator />
-
+        {/* Botão Salvar */}
         <div className="flex justify-end">
-          <Button onClick={handleSaveSettings} disabled={saving}>
+          <Button onClick={handleSaveProfile} disabled={saving}>
             {saving ? "Salvando..." : "Salvar Configurações"}
           </Button>
         </div>

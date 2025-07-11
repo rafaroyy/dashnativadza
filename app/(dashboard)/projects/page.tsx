@@ -1,19 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-export const dynamic = "force-dynamic"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Users } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Plus, Calendar, Users, MoreHorizontal } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
+
+export const dynamic = "force-dynamic"
 
 interface Project {
   id: string
   name: string
   description?: string
-  status: "active" | "completed" | "on_hold"
+  status: string
+  progress: number
   created_at: string
   updated_at: string
 }
@@ -25,68 +28,38 @@ export default function ProjectsPage() {
   const supabase = createClient()
 
   useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase.from("projects").select("*").order("created_at", { ascending: false })
+
+        if (error) throw error
+        setProjects(data || [])
+      } catch (error) {
+        console.error("Erro ao carregar projetos:", error)
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os projetos",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
     loadProjects()
-  }, [])
+  }, [supabase, toast])
 
-  const loadProjects = async () => {
-    try {
-      setLoading(true)
-      const { data, error } = await supabase.from("projects").select("*").order("created_at", { ascending: false })
-
-      if (error) throw error
-      setProjects(data || [])
-    } catch (error) {
-      console.error("Erro ao carregar projetos:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os projetos",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDeleteProject = async (projectId: string) => {
-    try {
-      const { error } = await supabase.from("projects").delete().eq("id", projectId)
-
-      if (error) throw error
-
-      setProjects((prev) => prev.filter((project) => project.id !== projectId))
-      toast({
-        title: "Sucesso",
-        description: "Projeto excluído com sucesso!",
-      })
-    } catch (error) {
-      console.error("Erro ao excluir projeto:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir o projeto",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const getStatusBadgeVariant = (status: Project["status"]) => {
-    switch (status) {
-      case "completed":
-        return "default"
-      case "active":
-        return "secondary"
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "ativo":
+        return "bg-green-500"
+      case "pausado":
+        return "bg-yellow-500"
+      case "concluído":
+        return "bg-blue-500"
       default:
-        return "outline"
-    }
-  }
-
-  const getStatusLabel = (status: Project["status"]) => {
-    switch (status) {
-      case "active":
-        return "Ativo"
-      case "completed":
-        return "Concluído"
-      case "on_hold":
-        return "Em Espera"
+        return "bg-gray-500"
     }
   }
 
@@ -98,7 +71,7 @@ export default function ProjectsPage() {
           <div className="h-4 bg-gray-200 rounded w-1/2"></div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+              <div key={i} className="h-48 bg-gray-200 rounded"></div>
             ))}
           </div>
         </div>
@@ -111,7 +84,7 @@ export default function ProjectsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Projetos</h1>
-          <p className="text-muted-foreground">Gerencie seus projetos e acompanhe o progresso</p>
+          <p className="text-muted-foreground">Gerencie todos os seus projetos</p>
         </div>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -134,29 +107,36 @@ export default function ProjectsPage() {
           {projects.map((project) => (
             <Card key={project.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{project.name}</CardTitle>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm">
-                      <Users className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteProject(project.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg">{project.name}</CardTitle>
+                    <CardDescription className="mt-1">{project.description || "Sem descrição"}</CardDescription>
+                  </div>
+                  <Button variant="ghost" size="sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <div className={`w-2 h-2 rounded-full ${getStatusColor(project.status)}`} />
+                    {project.status}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">{project.progress}% concluído</span>
+                </div>
+
+                <Progress value={project.progress} className="h-2" />
+
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(project.created_at).toLocaleDateString("pt-BR")}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />0 membros
                   </div>
                 </div>
-                {project.description && <CardDescription>{project.description}</CardDescription>}
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <Badge variant={getStatusBadgeVariant(project.status)}>{getStatusLabel(project.status)}</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Criado em {new Date(project.created_at).toLocaleDateString("pt-BR")}
-                </p>
               </CardContent>
             </Card>
           ))}

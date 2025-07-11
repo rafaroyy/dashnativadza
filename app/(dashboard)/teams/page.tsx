@@ -1,9 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-
-export const dynamic = "force-dynamic"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -11,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Mail, Edit, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/lib/supabase/client"
+
+export const dynamic = "force-dynamic"
 
 interface User {
   id: string
@@ -29,27 +28,27 @@ export default function TeamsPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    loadUsers()
-  }, [])
+    const loadUsers = async () => {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
 
-  const loadUsers = async () => {
-    try {
-      setLoading(true)
-      const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
-
-      if (error) throw error
-      setUsers(data || [])
-    } catch (error) {
-      console.error("Erro ao carregar usuários:", error)
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os membros da equipe",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
+        if (error) throw error
+        setUsers(data || [])
+      } catch (error) {
+        console.error("Erro ao carregar usuários:", error)
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os membros da equipe",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
     }
-  }
+
+    loadUsers()
+  }, [supabase, toast])
 
   const handleDeleteUser = async (userId: string) => {
     try {
