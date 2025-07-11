@@ -10,7 +10,7 @@ import { Plus, Search, Filter } from "lucide-react"
 import { CreateTaskModal } from "@/components/tasks/create-task-modal"
 import { useToast } from "@/hooks/use-toast"
 
-// Tipagem para a tarefa, alinhada com o banco de dados
+// Tipagens
 interface Task {
   id: string
   title: string
@@ -18,51 +18,64 @@ interface Task {
   status: "todo" | "in_progress" | "completed"
   priority: "low" | "medium" | "high"
   created_at: string
+  space_id: string
 }
 
-// Tipagem para os dados que vêm do modal
+interface Space {
+  id: string
+  name: string
+}
+
 interface TaskFormData {
   title: string
   description: string
   status: "todo" | "in_progress" | "completed"
   priority: "low" | "medium" | "high"
+  space_id: string
 }
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [spaces, setSpaces] = useState<Space[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const { toast } = useToast()
   const supabase = createClient()
 
-  const fetchTasks = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false })
+    try {
+      const [tasksRes, spacesRes] = await Promise.all([
+        supabase.from("tasks").select("*").order("created_at", { ascending: false }),
+        supabase.from("spaces").select("id, name"),
+      ])
 
-    if (error) {
-      toast({ title: "Erro ao carregar tarefas", description: error.message, variant: "destructive" })
-    } else {
-      setTasks(data || [])
+      if (tasksRes.error) throw tasksRes.error
+      if (spacesRes.error) throw spacesRes.error
+
+      setTasks(tasksRes.data || [])
+      setSpaces(spacesRes.data || [])
+    } catch (error: any) {
+      toast({ title: "Erro ao carregar dados", description: error.message, variant: "destructive" })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [supabase, toast])
 
   useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+    fetchData()
+  }, [fetchData])
 
   const handleCreateTask = async (taskData: TaskFormData) => {
     const { data, error } = await supabase.from("tasks").insert([taskData]).select().single()
 
     if (error) {
       toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" })
-      // Rejeita a promise para que o modal saiba que falhou
       throw new Error(error.message)
     }
 
     toast({ title: "Sucesso!", description: "Tarefa criada com sucesso." })
-    // Adiciona a nova tarefa no início da lista para feedback imediato
     setTasks((prev) => [data, ...prev])
   }
 
@@ -85,7 +98,7 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Tarefas</h1>
@@ -93,7 +106,7 @@ export default function TasksPage() {
         </div>
         <Button
           onClick={() => setIsCreateModalOpen(true)}
-          className="bg-digitalz-cyan hover:bg-digitalz-cyan-light text-black"
+          className="bg-digitalz-cyan hover:bg-digitalz-cyan-light text-black dark:text-white"
         >
           <Plus className="mr-2 h-4 w-4" />
           Nova Tarefa
@@ -117,7 +130,7 @@ export default function TasksPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-10">Carregando tarefas...</div>
+        <div className="text-center py-10">Carregando...</div>
       ) : filteredTasks.length > 0 ? (
         <div className="space-y-4">
           {filteredTasks.map((task) => (
@@ -132,7 +145,7 @@ export default function TasksPage() {
               <CardContent>
                 <div className="flex justify-between items-center text-sm text-muted-foreground">
                   <span>{getStatusLabel(task.status)}</span>
-                  <span>Prazo: {task.created_at ? new Date(task.created_at).toLocaleDateString() : "N/A"}</span>
+                  <span>Criada em: {new Date(task.created_at).toLocaleDateString()}</span>
                 </div>
               </CardContent>
             </Card>
@@ -144,7 +157,12 @@ export default function TasksPage() {
         </div>
       )}
 
-      <CreateTaskModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} onCreateTask={handleCreateTask} />
+      <CreateTaskModal
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+        onCreateTask={handleCreateTask}
+        spaces={spaces}
+      />
     </div>
   )
 }

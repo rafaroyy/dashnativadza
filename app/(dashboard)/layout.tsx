@@ -1,21 +1,15 @@
 import type React from "react"
-import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
-import { Toaster } from "@/components/ui/toaster"
+import { DashboardSidebar } from "@/components/layout/dashboard-sidebar"
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-screen w-full bg-digitalz-light-secondary dark:bg-digitalz-dark-secondary">
+      <DashboardSidebar />
+      <div className="flex flex-col flex-1">
         <Header />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
-      <Toaster />
     </div>
   )
 }

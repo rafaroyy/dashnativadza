@@ -10,21 +10,28 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 
-// Tipagem para os dados do formulário
+// Tipagens
+interface Space {
+  id: string
+  name: string
+}
+
 interface TaskFormData {
   title: string
   description: string
   status: "todo" | "in_progress" | "completed"
   priority: "low" | "medium" | "high"
+  space_id: string
 }
 
 interface CreateTaskModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreateTask: (taskData: TaskFormData) => Promise<void>
+  spaces: Space[]
 }
 
-export function CreateTaskModal({ open, onOpenChange, onCreateTask }: CreateTaskModalProps) {
+export function CreateTaskModal({ open, onOpenChange, onCreateTask, spaces }: CreateTaskModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<TaskFormData>({
@@ -32,6 +39,7 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask }: CreateTask
     description: "",
     status: "todo",
     priority: "medium",
+    space_id: "",
   })
 
   const handleFieldChange = (field: keyof TaskFormData, value: string) => {
@@ -41,24 +49,20 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask }: CreateTask
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.title.trim()) {
-      toast({
-        title: "Erro de Validação",
-        description: "O título da tarefa é obrigatório.",
-        variant: "destructive",
-      })
+      toast({ title: "Erro de Validação", description: "O título é obrigatório.", variant: "destructive" })
+      return
+    }
+    if (!formData.space_id) {
+      toast({ title: "Erro de Validação", description: "É obrigatório selecionar um espaço.", variant: "destructive" })
       return
     }
 
     setLoading(true)
     try {
-      // A função `onCreateTask` agora é uma Promise, garantindo que esperamos a conclusão
       await onCreateTask(formData)
-
-      // Limpa o formulário e fecha o modal apenas em caso de sucesso
-      setFormData({ title: "", description: "", status: "todo", priority: "medium" })
+      setFormData({ title: "", description: "", status: "todo", priority: "medium", space_id: "" })
       onOpenChange(false)
     } catch (error) {
-      // O erro já é tratado na página pai com um toast, não precisa de outro aqui.
       console.error("Falha ao criar tarefa no modal:", error)
     } finally {
       setLoading(false)
@@ -74,6 +78,23 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask }: CreateTask
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="space_id" className="text-right">
+                Espaço
+              </Label>
+              <Select value={formData.space_id} onValueChange={(value) => handleFieldChange("space_id", value)}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecione um espaço" />
+                </SelectTrigger>
+                <SelectContent>
+                  {spaces.map((space) => (
+                    <SelectItem key={space.id} value={space.id}>
+                      {space.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="title" className="text-right">
                 Título
               </Label>
@@ -82,7 +103,7 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask }: CreateTask
                 value={formData.title}
                 onChange={(e) => handleFieldChange("title", e.target.value)}
                 className="col-span-3"
-                placeholder="Ex: Revisar documentação da API"
+                placeholder="Ex: Revisar documentação"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -94,7 +115,7 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask }: CreateTask
                 value={formData.description}
                 onChange={(e) => handleFieldChange("description", e.target.value)}
                 className="col-span-3"
-                placeholder="Detalhes sobre a tarefa (opcional)"
+                placeholder="Detalhes da tarefa (opcional)"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -106,7 +127,7 @@ export function CreateTaskModal({ open, onOpenChange, onCreateTask }: CreateTask
                 onValueChange={(value: "low" | "medium" | "high") => handleFieldChange("priority", value)}
               >
                 <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Selecione a prioridade" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="low">Baixa</SelectItem>
