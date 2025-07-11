@@ -1,84 +1,55 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/hooks/use-toast"
 
-export interface CreateTaskModalProps {
+interface CreateTaskModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: TaskFormData) => Promise<void> | void
-  users: { id: string; name: string }[]
-  projects: { id: string; name: string }[]
+  onCreateTask: (task: {
+    title: string
+    description: string
+    status: "todo" | "in_progress" | "completed"
+    priority: "low" | "medium" | "high"
+  }) => void
 }
 
-interface TaskFormData {
-  title: string
-  description?: string
-  priority: "high" | "medium" | "low"
-  status: "todo" | "in_progress" | "done"
-  assignee_id?: string | null
-  project_id?: string | null
-}
-
-function CreateTaskModal(props: CreateTaskModalProps) {
-  const { open, onOpenChange, onSubmit, users, projects } = props
-  const { toast } = useToast()
-
-  const [form, setForm] = useState<TaskFormData>({
-    title: "",
-    description: "",
-    priority: "medium",
-    status: "todo",
-    assignee_id: null,
-    project_id: null,
-  })
+export function CreateTaskModal({ open, onOpenChange, onCreateTask }: CreateTaskModalProps) {
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium")
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (key: keyof TaskFormData, value: unknown) => setForm((prev) => ({ ...prev, [key]: value }))
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
 
-  const validateForm = () => {
-    if (!form.title || form.title.trim().length < 3) {
-      toast({
-        title: "Erro no formulário",
-        description: "O título deve ter pelo menos 3 caracteres",
-        variant: "destructive",
-      })
-      return false
+    if (!title.trim()) {
+      return
     }
-    return true
-  }
 
-  const handleSubmit = async () => {
-    if (!validateForm()) return
+    setLoading(true)
 
     try {
-      setLoading(true)
-      await onSubmit(form)
-      onOpenChange(false)
-      setForm({
-        title: "",
-        description: "",
-        priority: "medium",
+      await onCreateTask({
+        title: title.trim(),
+        description: description.trim(),
         status: "todo",
-        assignee_id: null,
-        project_id: null,
+        priority,
       })
-      toast({
-        title: "Sucesso",
-        description: "Tarefa criada com sucesso!",
-      })
+
+      // Reset form
+      setTitle("")
+      setDescription("")
+      setPriority("medium")
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar a tarefa",
-        variant: "destructive",
-      })
+      console.error("Erro ao criar tarefa:", error)
     } finally {
       setLoading(false)
     }
@@ -86,118 +57,59 @@ function CreateTaskModal(props: CreateTaskModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Criar Nova Tarefa</DialogTitle>
+          <DialogTitle>Nova Tarefa</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-4">
-          <div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
             <Label htmlFor="title">Título</Label>
             <Input
               id="title"
-              value={form.title}
-              onChange={(e) => handleChange("title", e.target.value)}
-              placeholder="Título da tarefa"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Digite o título da tarefa"
               required
             />
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="description">Descrição</Label>
             <Textarea
               id="description"
-              value={form.description ?? ""}
-              onChange={(e) => handleChange("description", e.target.value)}
-              placeholder="Descrição da tarefa (opcional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Digite a descrição da tarefa"
+              rows={3}
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Prioridade</Label>
-              <Select value={form.priority} onValueChange={(value) => handleChange("priority", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Prioridade" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="high">Alta</SelectItem>
-                  <SelectItem value="medium">Média</SelectItem>
-                  <SelectItem value="low">Baixa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(value) => handleChange("status", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todo">A Fazer</SelectItem>
-                  <SelectItem value="in_progress">Em Progresso</SelectItem>
-                  <SelectItem value="done">Concluída</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="priority">Prioridade</Label>
+            <Select value={priority} onValueChange={(value: "low" | "medium" | "high") => setPriority(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a prioridade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Baixa</SelectItem>
+                <SelectItem value="medium">Média</SelectItem>
+                <SelectItem value="high">Alta</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Atribuir a</Label>
-              <Select
-                value={form.assignee_id ?? "none"}
-                onValueChange={(value) => handleChange("assignee_id", value === "none" ? null : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar membro" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Ninguém</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Projeto</Label>
-              <Select
-                value={form.project_id ?? "none"}
-                onValueChange={(value) => handleChange("project_id", value === "none" ? null : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar projeto" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} disabled={loading} className="flex-1">
-              {loading ? "Salvando..." : "Criar Tarefa"}
+            <Button type="submit" disabled={loading || !title.trim()} className="bg-teal-500 hover:bg-teal-600">
+              {loading ? "Criando..." : "Criar Tarefa"}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   )
 }
 
-export { CreateTaskModal }
 export default CreateTaskModal

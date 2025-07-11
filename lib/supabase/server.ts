@@ -1,15 +1,13 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr"
+import { createServerClient as createSupabaseServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
-export async function createClient() {
-  const cookieStore = await cookies()
-
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+export function createServerClient(cookieStore: any) {
+  return createSupabaseServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value
       },
-      set(name: string, value: string, options: CookieOptions) {
+      set(name: string, value: string, options: any) {
         try {
           cookieStore.set({ name, value, ...options })
         } catch (error) {
@@ -18,7 +16,7 @@ export async function createClient() {
           // user sessions.
         }
       },
-      remove(name: string, options: CookieOptions) {
+      remove(name: string, options: any) {
         try {
           cookieStore.set({ name, value: "", ...options })
         } catch (error) {
@@ -31,18 +29,27 @@ export async function createClient() {
   })
 }
 
+export function createClient(cookieStore: any) {
+  return createServerClient(cookieStore)
+}
+
 export async function getUserFromSession() {
-  const supabase = await createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  return session?.user || null
+  const cookieStore = await cookies()
+  const supabase = createServerClient(cookieStore)
+
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+    if (error) throw error
+    return user
+  } catch (error) {
+    console.error("Error getting user:", error)
+    return null
+  }
 }
 
 export async function getUser() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
+  return getUserFromSession()
 }

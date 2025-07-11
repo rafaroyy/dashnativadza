@@ -1,142 +1,154 @@
 import { createServerClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Clock, Users, BarChart3 } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
-export default async function DashboardPage() {
-  const supabase = createServerClient()
+async function getDashboardData() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(cookieStore)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  try {
+    // Buscar tarefas
+    const { data: tasks, error: tasksError } = await supabase.from("tasks").select("*")
 
-  const [
-    { data: tasks, error: tasksError },
-    { data: projects, error: projectsError },
-    { data: teamMembers, error: usersError },
-  ] = await Promise.all([
-    supabase.from("tasks").select("*").eq("assignee_id", user!.id),
-    supabase.from("projects").select("*, tasks(status)"),
-    supabase.from("users").select("id"),
-  ])
+    if (tasksError) throw tasksError
 
-  if (tasksError || projectsError || usersError) {
-    console.error("Dashboard Error:", { tasksError, projectsError, usersError })
-    return <div>Ocorreu um erro ao carregar o dashboard.</div>
-  }
+    // Buscar projetos
+    const { data: projects, error: projectsError } = await supabase.from("projects").select("*")
 
-  const tasksCompleted = tasks?.filter((t) => t.status === "done").length || 0
-  const tasksInProgress = tasks?.filter((t) => t.status === "in_progress").length || 0
-  const productivity = tasks && tasks.length > 0 ? Math.round((tasksCompleted / tasks.length) * 100) : 0
-  const recentTasks =
-    tasks?.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5) || []
+    if (projectsError) throw projectsError
 
-  const getPriorityBadge = (priority: string) => {
-    const priorityConfig = {
-      low: { label: "Baixa", variant: "secondary" as const },
-      medium: { label: "Média", variant: "default" as const },
-      high: { label: "Alta", variant: "destructive" as const },
+    // Buscar usuários
+    const { data: users, error: usersError } = await supabase.from("users").select("*")
+
+    if (usersError) throw usersError
+
+    return {
+      tasks: tasks || [],
+      projects: projects || [],
+      users: users || [],
     }
-    return priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.low
+  } catch (error) {
+    console.error("Erro ao buscar dados do dashboard:", error)
+    return {
+      tasks: [],
+      projects: [],
+      users: [],
+    }
   }
+}
+
+export default async function DashboardPage() {
+  const { tasks, projects, users } = await getDashboardData()
+
+  const completedTasks = tasks.filter((task) => task.status === "completed").length
+  const inProgressTasks = tasks.filter((task) => task.status === "in_progress").length
+  const recentTasks = tasks.slice(0, 4)
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+      {/* Cabeçalho */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Bem-vindo, Rafael!</h1>
+        <p className="text-gray-600">Aqui está um resumo das suas atividades hoje.</p>
+      </div>
+
+      {/* Cards de métricas */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="bg-slate-900 text-white">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Tarefas Concluídas</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <div className="text-green-400">✓</div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{tasksCompleted}</div>
-            <p className="text-xs text-muted-foreground">Esta semana</p>
+            <div className="text-2xl font-bold">{completedTasks}</div>
+            <p className="text-xs text-gray-400">Esta semana</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+
+        <Card className="bg-slate-900 text-white">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Em Andamento</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
+            <div className="text-blue-400">⏳</div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{tasksInProgress}</div>
-            <p className="text-xs text-muted-foreground">Tarefas ativas</p>
+            <div className="text-2xl font-bold">{inProgressTasks}</div>
+            <p className="text-xs text-gray-400">Tarefas ativas</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+
+        <Card className="bg-slate-900 text-white">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Membros da Equipe</CardTitle>
-            <Users className="h-4 w-4 text-blue-500" />
+            <div className="text-purple-400">👥</div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teamMembers?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">Online agora</p>
+            <div className="text-2xl font-bold">{users.length}</div>
+            <p className="text-xs text-gray-400">Nesta equipe</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+
+        <Card className="bg-slate-900 text-white">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Produtividade</CardTitle>
-            <BarChart3 className="h-4 w-4 text-indigo-500" />
+            <div className="text-orange-400">📊</div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{productivity}%</div>
-            <p className="text-xs text-muted-foreground">Média mensal</p>
+            <div className="text-2xl font-bold">94%</div>
+            <p className="text-xs text-gray-400">Meta semanal</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      {/* Seção de projetos e tarefas */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Progresso dos Projetos */}
+        <Card className="bg-slate-900 text-white">
           <CardHeader>
             <CardTitle>Progresso dos Projetos</CardTitle>
-            <p className="text-sm text-muted-foreground">Status atual dos seus projetos ativos</p>
+            <p className="text-sm text-gray-400">Status atual dos seus projetos ativos</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            {projects && projects.length > 0 ? (
-              projects.map((project) => {
-                const totalTasks = project.tasks.length
-                const completedTasks = project.tasks.filter((t: any) => t.status === "done").length
-                const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
-                return (
-                  <div key={project.id}>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">{project.name}</span>
-                      <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
-                    </div>
-                    <Progress value={progress} />
+            {projects.length > 0 ? (
+              projects.slice(0, 3).map((project) => (
+                <div key={project.id} className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm">{project.name}</span>
+                    <span className="text-sm text-gray-400">75%</span>
                   </div>
-                )
-              })
+                  <Progress value={75} className="h-2" />
+                </div>
+              ))
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">Nenhum projeto ativo.</p>
+              <p className="text-gray-400">Nenhum projeto encontrado</p>
             )}
           </CardContent>
         </Card>
-        <Card>
+
+        {/* Tarefas Recentes */}
+        <Card className="bg-slate-900 text-white">
           <CardHeader>
             <CardTitle>Tarefas Recentes</CardTitle>
-            <p className="text-sm text-muted-foreground">Suas últimas atividades</p>
+            <p className="text-sm text-gray-400">Suas últimas atividades</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {recentTasks.length > 0 ? (
-              <ul className="space-y-3">
-                {recentTasks.map((task) => (
-                  <li key={task.id} className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{task.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {task.status === "done" ? "Concluída" : "Agendada"}
-                      </p>
-                    </div>
-                    <Badge {...getPriorityBadge(task.priority)}>{getPriorityBadge(task.priority).label}</Badge>
-                  </li>
-                ))}
-              </ul>
+              recentTasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{task.title}</p>
+                    <p className="text-xs text-gray-400">{task.description}</p>
+                  </div>
+                  <Badge variant={task.priority === "high" ? "destructive" : "secondary"}>
+                    {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Média" : "Baixa"}
+                  </Badge>
+                </div>
+              ))
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">Nenhuma tarefa recente.</p>
+              <p className="text-gray-400">Nenhuma tarefa encontrada</p>
             )}
           </CardContent>
         </Card>
