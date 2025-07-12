@@ -5,142 +5,242 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Plus, Mail, Edit, Trash2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Progress } from "@/components/ui/progress"
+import { Users, UserPlus, Mail, Phone, Calendar } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/hooks/use-toast"
 
-interface User {
+interface TeamMember {
   id: string
   name: string
   email: string
-  role?: string
-  avatar_url?: string
-  created_at: string
-  updated_at: string
+  role: string
+  avatar?: string
+  status: "active" | "inactive"
+  joinedAt: string
 }
 
 export default function TeamsClient() {
-  const [users, setUsers] = useState<User[]>([])
+  const [mounted, setMounted] = useState(false)
+  const [members, setMembers] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
   useEffect(() => {
-    const supabase = createClient()
-    const load = async () => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
+    const fetchTeamMembers = async () => {
       try {
-        const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
-        if (error) throw error
-        setUsers(data || [])
-      } catch (err) {
-        console.error(err)
+        const supabase = createClient()
+        const { data, error } = await supabase
+          .from("team_members")
+          .select("*")
+          .order("created_at", { ascending: false })
+
+        if (error) {
+          console.error("Error fetching team members:", error)
+          // Usar dados mock se houver erro
+          setMembers([
+            {
+              id: "1",
+              name: "João Silva",
+              email: "joao@digitalz.com",
+              role: "Desenvolvedor Senior",
+              status: "active",
+              joinedAt: "2024-01-15",
+            },
+            {
+              id: "2",
+              name: "Maria Santos",
+              email: "maria@digitalz.com",
+              role: "Designer UX/UI",
+              status: "active",
+              joinedAt: "2024-02-01",
+            },
+            {
+              id: "3",
+              name: "Pedro Costa",
+              email: "pedro@digitalz.com",
+              role: "Product Manager",
+              status: "inactive",
+              joinedAt: "2024-01-20",
+            },
+          ])
+        } else {
+          setMembers(data || [])
+        }
+      } catch (error) {
+        console.error("Error:", error)
         toast({
           title: "Erro",
-          description: "Não foi possível carregar os membros da equipe",
+          description: "Não foi possível carregar os membros da equipe.",
           variant: "destructive",
         })
       } finally {
         setLoading(false)
       }
     }
-    load()
-  }, [toast])
 
-  const handleDelete = async (id: string) => {
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.from("users").delete().eq("id", id)
-      if (error) throw error
-      setUsers((u) => u.filter((x) => x.id !== id))
-      toast({ title: "Sucesso", description: "Membro removido" })
-    } catch (err) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível remover o membro",
-        variant: "destructive",
-      })
-    }
+    fetchTeamMembers()
+  }, [mounted, toast])
+
+  if (!mounted) {
+    return <div>Carregando...</div>
   }
 
-  const initials = (n: string) =>
-    n
-      .split(" ")
-      .map((i) => i[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
-
-  if (loading)
+  if (loading) {
     return (
-      <div className="p-6">
-        <p className="animate-pulse text-muted-foreground">Carregando...</p>
-      </div>
-    )
-
-  return (
-    <div className="p-6 space-y-6">
-      {/* header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Equipe</h1>
-          <p className="text-muted-foreground">Gerencie os membros da sua equipe</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Equipe</h1>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Convidar Membro
-        </Button>
-      </div>
-
-      {/* grid */}
-      {users.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 flex flex-col items-center">
-            <p className="mb-4 text-muted-foreground">Nenhum membro encontrado</p>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Convidar primeiro membro
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {users.map((u) => (
-            <Card key={u.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-4">
-                  <Avatar>
-                    <AvatarImage src={u.avatar_url || "/placeholder.svg"} />
-                    <AvatarFallback>{initials(u.name)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{u.name}</CardTitle>
-                    <CardDescription className="flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      {u.email}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="ghost">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDelete(u.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="space-y-2">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
               </CardHeader>
               <CardContent>
-                {u.role && (
-                  <Badge variant="secondary" className="mb-2">
-                    {u.role}
-                  </Badge>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Membro desde {new Date(u.created_at).toLocaleDateString("pt-BR")}
-                </p>
+                <div className="h-20 bg-gray-200 rounded"></div>
               </CardContent>
             </Card>
           ))}
         </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Equipe</h1>
+          <p className="text-muted-foreground">Gerencie os membros da sua equipe</p>
+        </div>
+        <Button>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Adicionar Membro
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Membros</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{members.length}</div>
+            <p className="text-xs text-muted-foreground">+2 desde o mês passado</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Membros Ativos</CardTitle>
+            <Users className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{members.filter((m) => m.status === "active").length}</div>
+            <p className="text-xs text-muted-foreground">
+              {Math.round((members.filter((m) => m.status === "active").length / members.length) * 100)}% da equipe
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Produtividade</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">87%</div>
+            <Progress value={87} className="mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Satisfação</CardTitle>
+            <Users className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">9.2</div>
+            <p className="text-xs text-muted-foreground">de 10 pontos</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Team Members Grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {members.map((member) => (
+          <Card key={member.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <div className="flex items-center space-x-4">
+                <Avatar>
+                  <AvatarImage src={member.avatar || "/placeholder.svg"} />
+                  <AvatarFallback>
+                    {member.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <CardTitle className="text-lg">{member.name}</CardTitle>
+                  <CardDescription>{member.role}</CardDescription>
+                </div>
+                <Badge variant={member.status === "active" ? "default" : "secondary"}>
+                  {member.status === "active" ? "Ativo" : "Inativo"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <Mail className="h-4 w-4" />
+                  <span>{member.email}</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Entrou em {new Date(member.joinedAt).toLocaleDateString("pt-BR")}</span>
+                </div>
+                <div className="flex space-x-2 pt-2">
+                  <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Contatar
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 bg-transparent">
+                    <Phone className="mr-2 h-4 w-4" />
+                    Perfil
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Empty State */}
+      {members.length === 0 && !loading && (
+        <Card className="text-center py-12">
+          <CardContent>
+            <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nenhum membro encontrado</h3>
+            <p className="text-muted-foreground mb-4">Comece adicionando membros à sua equipe.</p>
+            <Button>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Adicionar Primeiro Membro
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

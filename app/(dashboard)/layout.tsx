@@ -1,14 +1,11 @@
 import type React from "react"
 import { Header } from "@/components/layout/header"
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar"
-import { createServerClient } from "@/lib/supabase/server"
+import { getUserFromSession } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getUserFromSession()
 
   if (!user) {
     redirect("/login")

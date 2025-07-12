@@ -1,7 +1,11 @@
-import { createServerClient as createSupabaseServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { createServerClient as createSupabaseServerClient } from "@supabase/ssr"
 
-export function createServerClient(cookieStore: any) {
+/**
+ * Creates a Supabase client on the server, wired to the current
+ * request/response cookie store.
+ */
+export function createServerClient(cookieStore: ReturnType<typeof cookies> = cookies()) {
   return createSupabaseServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
       get(name: string) {
@@ -10,34 +14,36 @@ export function createServerClient(cookieStore: any) {
       set(name: string, value: string, options: any) {
         try {
           cookieStore.set({ name, value, ...options })
-        } catch (error) {
-          // The `set` method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing
-          // user sessions.
+        } catch {
+          /* called from a Server Component – ignore */
         }
       },
       remove(name: string, options: any) {
         try {
           cookieStore.set({ name, value: "", ...options })
-        } catch (error) {
-          // The `delete` method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing
-          // user sessions.
+        } catch {
+          /* called from a Server Component – ignore */
         }
       },
     },
   })
 }
 
-export function createClient(cookieStore: any) {
-  return createServerClient(cookieStore)
+/**
+ * Back-compat convenience alias for code that imports `createClient`.
+ * Internally it just calls `createServerClient()`.
+ */
+export function createClient() {
+  return createServerClient()
 }
 
+/**
+ * Convenience wrapper – use inside **Server Components** to obtain the user
+ * associated with the current session (returns `null` when não autenticado).
+ */
 export async function getUserFromSession() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(cookieStore)
-
   try {
+    const supabase = createClient()
     const {
       data: { user },
       error,
@@ -50,6 +56,9 @@ export async function getUserFromSession() {
   }
 }
 
+/**
+ * Alias retained for backward-compatibility with legacy imports.
+ */
 export async function getUser() {
   return getUserFromSession()
 }
