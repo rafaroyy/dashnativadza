@@ -11,7 +11,7 @@ export async function signIn(formData: FormData) {
     return { error: "Email e senha são obrigatórios" }
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Buscar usuário na tabela users
   const { data: user, error } = await supabase.from("users").select("*").eq("email", email).single()
@@ -26,7 +26,7 @@ export async function signIn(formData: FormData) {
   }
 
   // Criar sessão via cookie
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const userData = {
     id: user.id,
     name: user.name,
@@ -45,7 +45,7 @@ export async function signIn(formData: FormData) {
 }
 
 export async function signOut() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   cookieStore.delete("user_session")
   redirect("/login")
 }

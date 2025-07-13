@@ -36,10 +36,7 @@ export default function TeamsClient() {
     const fetchTeamMembers = async () => {
       try {
         const supabase = createClient()
-        const { data, error } = await supabase
-          .from("team_members")
-          .select("*")
-          .order("created_at", { ascending: false })
+        const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
 
         if (error) {
           console.error("Error fetching team members:", error)
@@ -71,7 +68,16 @@ export default function TeamsClient() {
             },
           ])
         } else {
-          setMembers(data || [])
+          const formattedMembers =
+            data?.map((user: any) => ({
+              id: user.id,
+              name: user.name || user.email,
+              email: user.email,
+              role: user.role || "Membro",
+              status: "active" as const,
+              joinedAt: user.created_at,
+            })) || []
+          setMembers(formattedMembers)
         }
       } catch (error) {
         console.error("Error:", error)
@@ -150,7 +156,10 @@ export default function TeamsClient() {
           <CardContent>
             <div className="text-2xl font-bold">{members.filter((m) => m.status === "active").length}</div>
             <p className="text-xs text-muted-foreground">
-              {Math.round((members.filter((m) => m.status === "active").length / members.length) * 100)}% da equipe
+              {members.length > 0
+                ? Math.round((members.filter((m) => m.status === "active").length / members.length) * 100)
+                : 0}
+              % da equipe
             </p>
           </CardContent>
         </Card>

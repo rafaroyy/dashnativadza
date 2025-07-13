@@ -69,13 +69,29 @@ export default function SettingsClient() {
     const fetchUserSettings = async () => {
       try {
         const supabase = createClient()
-        const { data, error } = await supabase.from("user_settings").select("*").single()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (user) {
+          setSettings((prev) => ({
+            ...prev,
+            id: user.id,
+            name: user.user_metadata?.full_name || user.email || "Usuário",
+            email: user.email || "",
+          }))
+        }
+
+        const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user?.id).single()
 
         if (error) {
           console.error("Error fetching user settings:", error)
           // Usar configurações padrão se houver erro
         } else if (data) {
-          setSettings(data)
+          setSettings((prev) => ({
+            ...prev,
+            ...data,
+          }))
         }
       } catch (error) {
         console.error("Error:", error)
@@ -89,7 +105,10 @@ export default function SettingsClient() {
     setLoading(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.from("user_settings").upsert(settings)
+      const { error } = await supabase.from("user_settings").upsert({
+        user_id: settings.id,
+        ...settings,
+      })
 
       if (error) {
         console.error("Error saving settings:", error)
@@ -201,17 +220,7 @@ export default function SettingsClient() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={settings.email}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        email: e.target.value,
-                      })
-                    }
-                  />
+                  <Input id="email" type="email" value={settings.email} disabled className="bg-muted" />
                 </div>
               </div>
 
@@ -366,7 +375,7 @@ export default function SettingsClient() {
                   <Label htmlFor="theme">Tema</Label>
                   <select
                     id="theme"
-                    className="w-full p-2 border rounded-md"
+                    className="w-full p-2 border rounded-md bg-background"
                     value={settings.preferences.theme}
                     onChange={(e) =>
                       setSettings({
@@ -388,7 +397,7 @@ export default function SettingsClient() {
                   <Label htmlFor="language">Idioma</Label>
                   <select
                     id="language"
-                    className="w-full p-2 border rounded-md"
+                    className="w-full p-2 border rounded-md bg-background"
                     value={settings.preferences.language}
                     onChange={(e) =>
                       setSettings({
@@ -411,7 +420,7 @@ export default function SettingsClient() {
                 <Label htmlFor="timezone">Fuso Horário</Label>
                 <select
                   id="timezone"
-                  className="w-full p-2 border rounded-md"
+                  className="w-full p-2 border rounded-md bg-background"
                   value={settings.preferences.timezone}
                   onChange={(e) =>
                     setSettings({

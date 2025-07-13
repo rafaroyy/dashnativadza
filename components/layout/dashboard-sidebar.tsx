@@ -1,63 +1,69 @@
 "use client"
 
+import type React from "react"
+
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Home, CheckSquare, FolderOpen, Users, Settings } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Home, CheckSquare, FolderOpen, Users, Calendar, Settings, BarChart3 } from "lucide-react"
 import { DigitalzLogo } from "@/components/ui/digitalz-logo"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Tarefas", href: "/tasks", icon: CheckSquare },
-  { name: "Projetos", href: "/projects", icon: FolderOpen },
-  { name: "Equipe", href: "/teams", icon: Users },
+  { name: "Tarefas", href: "/dashboard/tasks", icon: CheckSquare },
+  { name: "Projetos", href: "/dashboard/projects", icon: FolderOpen },
+  { name: "Equipe", href: "/dashboard/teams", icon: Users },
+  { name: "Calendário", href: "/dashboard/calendar", icon: Calendar },
+  { name: "Relatórios", href: "/dashboard/reports", icon: BarChart3 },
+  { name: "Configurações", href: "/dashboard/settings", icon: Settings },
 ]
 
-const settingsNavigation = [{ name: "Configurações", href: "/settings", icon: Settings }]
-
 export function DashboardSidebar() {
-  const pathname = usePathname()
-
   return (
-    <aside className="hidden w-64 flex-col border-r bg-[hsl(var(--digitalz-sidebar-bg))] text-white md:flex">
-      <div className="flex h-16 items-center px-6">
-        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-          <DigitalzLogo className="h-6 w-6" />
-          <span>DigitalZ</span>
+    <div className="flex h-full w-64 flex-col border-r bg-background">
+      <div className="flex h-16 items-center border-b px-6">
+        <Link href="/dashboard" className="flex items-center space-x-2">
+          <DigitalzLogo className="h-8 w-8" />
+          <span className="text-lg font-semibold">ClickUp Clone</span>
         </Link>
       </div>
-      <nav className="flex flex-1 flex-col gap-4 px-4 py-4">
-        <div className="flex-1">
+
+      <ScrollArea className="flex-1 px-3 py-4">
+        <nav className="space-y-2">
           {navigation.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 transition-all hover:bg-gray-700 hover:text-white",
-                pathname.startsWith(item.href) ? "bg-gray-800 text-white" : "",
-              )}
-            >
-              <item.icon className="h-4 w-4" />
+            <SidebarLink key={item.name} href={item.href} icon={item.icon}>
               {item.name}
-            </Link>
+            </SidebarLink>
           ))}
-        </div>
-        <div>
-          {settingsNavigation.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 transition-all hover:bg-gray-700 hover:text-white",
-                pathname.startsWith(item.href) ? "bg-gray-800 text-white" : "",
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.name}
-            </Link>
-          ))}
-        </div>
-      </nav>
-    </aside>
+        </nav>
+      </ScrollArea>
+    </div>
+  )
+}
+
+function SidebarLink({
+  href,
+  icon: Icon,
+  children,
+}: {
+  href: string
+  icon: any
+  children: React.ReactNode
+}) {
+  const pathname = usePathname()
+  const isActive = pathname === href
+
+  return (
+    <Link href={href}>
+      <Button
+        variant={isActive ? "secondary" : "ghost"}
+        className={cn("w-full justify-start", isActive && "bg-secondary")}
+      >
+        <Icon className="mr-2 h-4 w-4" />
+        {children}
+      </Button>
+    </Link>
   )
 }

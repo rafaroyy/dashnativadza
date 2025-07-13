@@ -75,7 +75,18 @@ export default function ProjectsClient() {
             },
           ])
         } else {
-          setProjects(data || [])
+          const formattedProjects =
+            data?.map((project: any) => ({
+              id: project.id,
+              name: project.name || project.title,
+              description: project.description || "Sem descrição",
+              status: project.status || "active",
+              progress: project.progress || 0,
+              dueDate: project.deadline || project.created_at,
+              teamMembers: project.members_count || 0,
+              createdAt: project.created_at,
+            })) || []
+          setProjects(formattedProjects)
         }
       } catch (error) {
         console.error("Error:", error)
@@ -201,10 +212,11 @@ export default function ProjectsClient() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(projects.reduce((acc, p) => acc + p.progress, 0) / projects.length || 0)}%
+              {projects.length > 0 ? Math.round(projects.reduce((acc, p) => acc + p.progress, 0) / projects.length) : 0}
+              %
             </div>
             <Progress
-              value={projects.reduce((acc, p) => acc + p.progress, 0) / projects.length || 0}
+              value={projects.length > 0 ? projects.reduce((acc, p) => acc + p.progress, 0) / projects.length : 0}
               className="mt-2"
             />
           </CardContent>

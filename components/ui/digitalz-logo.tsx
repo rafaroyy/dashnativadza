@@ -6,11 +6,20 @@ interface DigitalzLogoProps {
 
 export function DigitalzLogo({ className }: DigitalzLogoProps) {
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
-      <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-        <span className="text-white font-bold text-sm">D</span>
-      </div>
-      <span className="font-bold text-xl text-foreground">DigitalZ</span>
+    <div className={cn("flex items-center justify-center", className)}>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-full h-full"
+      >
+        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+        <path d="M2 17l10 5 10-5" />
+        <path d="M2 12l10 5 10-5" />
+      </svg>
     </div>
   )
 }
